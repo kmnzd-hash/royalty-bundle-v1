@@ -1,0 +1,232 @@
+import 'dotenv/config';
+import { createClient } from '@supabase/supabase-js';
+import { Client } from '@notionhq/client';
+import Papa from 'papaparse';
+
+/**
+ * ENV comes from GitHub Actions (secrets) or local .env when testing:
+ * SUPABASE_URL
+ * SUPABASE_SERVICE_ROLE_KEY
+ * NOTION_TOKEN
+ * NOTION_DB_BUNDLES
+ * NOTION_DB_SALES
+ * NOTION_DB_PAYOUTS
+ * NOTION_DB_DASHBOARD
+ */
+
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const notion = new Client({ auth: process.env.NOTION_TOKEN });
+
+/** Helpers **/
+const text = (s) => ({ rich_text: [{ type: 'text', text: { content: String(s ?? '') } }] });
+const title = (s) => ({ title: [{ type: 'text', text: { content: String(s ?? '') } }] });
+
+function parseSplit(str) {
+  if (!str) return [];
+  // Accept "20/20/60", "20,20,60", "20|20|60"
+  const nums = String(str).split(/[\/,\|]/).map(s => Number(String(s).trim())).filter(n => !isNaN(n));
+  const sum = nums.reduce((a,b)=>a+b,0);
+  // Normalize to 100 if needed
+  return sum === 0 ? [] : nums.map(n => (n / sum) * 100);
+}
+
+function calcPayouts(gross, splitPercents, recipients) {
+  // recipients is array of {id, role, label}
+  // Map % to recipients in order; ignore extras; if fewer recipients than %s, trim %s
+  const n = Math.min(splitPercents.length, recipients.length);
+  const cents = Math.round(gross * 100);
+  let allocated = 0;
+  const rows = [];
+
+  for (let i=0;i<n;i++){
+    const amt = i === n-1
+      ? (cents - allocated)                      // push rounding remainder to last
+      : Math.round((splitPercents[i] / 100) * cents);
+    allocated += amt;
+    rows.push({
+      recipient: recipients[i].id,
+      role: recipients[i].role,
+      amount: amt / 100
+    });
+  }
+  return rows;
+}
+
+async function findBundleByVaultId(vaultId) {
+  const { data, error } = await supabase.from('bundles').select('*').eq('vault_id', vaultId).limit(1);
+  if (error) throw error;
+  return data?.[0] || null;
+}
+
+async function upsertSale({ offerName, vaultId, saleAmount, currency='USD', saleDate }) {
+  // 1) Look up bundle
+  const bundle = await findBundleByVaultId(vaultId);
+  if (!bundle) throw new Error(`Bundle not found for vault_id=${vaultId}`);
+
+  // 2) Ensure offer exists or create a placeholder offer by name
+  let offerId;
+  {
+    const { data: offer } = await supabase.from('offers').select('id').eq('bundle_id', bundle.id).eq('name', offerName).maybeSingle();
+    if (offer?.id) {
+      offerId = offer.id;
+    } else {
+      const { data: ins, error: insErr } = await supabase.from('offers').insert({ bundle_id: bundle.id, name: offerName, is_active: true }).select('id').single();
+      if (insErr) throw insErr;
+      offerId = ins.id;
+    }
+  }
+
+  // 3) Insert sale
+  const { data: sale, error: saleErr } = await supabase.from('sales')
+    .insert({ offer_id: offerId, sale_date: saleDate ?? new Date().toISOString(), gross_amount: saleAmount, currency })
+    .select('*').single();
+  if (saleErr) throw saleErr;
+
+  // 4) Compute payouts from bundle.override_pct
+  const splitPercents = parseSplit(bundle.override_pct); // flexible
+  // Default recipient order = creator_id, entity_to, ip_holder, (optionally referrer_id)
+  const recipients = [
+    { id: bundle.creator_id, role: 'creator' },
+    { id: bundle.entity_to, role: 'executor' },
+    { id: bundle.ip_holder, role: 'ip_holder' },
+  ];
+  if (bundle.referrer_id) recipients.push({ id: bundle.referrer_id, role: 'referrer' });
+
+  const payouts = calcPayouts(Number(sale.gross_amount), splitPercents, recipients);
+
+  // 5) Save payouts
+  for (const p of payouts) {
+    await supabase.from('payouts').insert({
+      sale_id: sale.id,
+      recipient: p.recipient,
+      role: p.role,
+      amount: p.amount,
+      currency
+    });
+  }
+
+  return { sale, payouts, bundle };
+}
+
+/** Notion Sync **/
+
+async function upsertDashboardMetrics() {
+  // metrics from Supabase
+  const [{ data: offersCount }, { data: salesCount }, { data: queuedTotal }] = await Promise.all([
+    supabase.from('offers').select('id', { count: 'exact', head: true }),
+    supabase.from('sales').select('id', { count: 'exact', head: true }),
+    supabase.rpc('sql', {}) // placeholder if you use RPC; otherwise simple aggregate below
+  ]).catch(()=>[{},{},{}]);
+
+  // fallback aggregates without RPC:
+  const { count: offersNum } = offersCount || {};
+  const { count: salesNum } = salesCount || {};
+
+  const { data: queued } = await supabase.from('payouts').select('amount,status').eq('status','queued');
+  const queuedSum = (queued || []).reduce((a,b)=>a + Number(b.amount||0), 0);
+
+  // find or create the single Dashboard row ("Live")
+  const list = await notion.databases.query({ database_id: process.env.NOTION_DB_DASHBOARD, page_size: 1 });
+  const page = list.results[0];
+
+  const props = {
+    'Name': title('Live'),
+    '#Offers': { number: offersNum ?? 0 },
+    '#Sales': { number: salesNum ?? 0 },
+    '#Royalties Queued': { number: Math.round(queuedSum * 100) / 100 },
+  };
+
+  if (!page) {
+    await notion.pages.create({
+      parent: { database_id: process.env.NOTION_DB_DASHBOARD },
+      properties: props
+    });
+  } else {
+    await notion.pages.update({ page_id: page.id, properties: props });
+  }
+}
+
+async function createNotionPayoutRow({ saleId, recipient, role, amount, currency }) {
+  return notion.pages.create({
+    parent: { database_id: process.env.NOTION_DB_PAYOUTS },
+    properties: {
+      'Sale ID': text(saleId),
+      'Recipient': title(recipient),
+      'Role': { select: { name: role } },
+      'Amount': { number: Number(amount) },
+      'Currency': text(currency),
+      'Status': { select: { name: 'queued' } }
+    }
+  });
+}
+
+async function updateNotionSalesRow({ vaultId, offerName, saleAmount, saleId, split }) {
+  // Try to find a Sales row with matching Vault ID & Offer Name; otherwise create
+  const q = await notion.databases.query({
+    database_id: process.env.NOTION_DB_SALES,
+    filter: {
+      and: [
+        { property: 'Bundle Vault ID', rich_text: { equals: String(vaultId) } },
+        { property: 'Offer Name', title: { equals: String(offerName) } }
+      ]
+    },
+    page_size: 1
+  });
+  const props = {
+    'Offer Name': title(offerName),
+    'Bundle Vault ID': text(vaultId),
+    'Sale Amount': { number: Number(saleAmount) },
+    'Calculated Split': text(split),
+    'Linked Sale ID': text(saleId)
+  };
+
+  if (!q.results.length) {
+    await notion.pages.create({ parent: { database_id: process.env.NOTION_DB_SALES }, properties: props });
+  } else {
+    await notion.pages.update({ page_id: q.results[0].id, properties: props });
+  }
+}
+
+async function syncOneSaleFromNotionSalesRow(page) {
+  // Pull info from Notion Sales DB
+  const props = page.properties;
+  const offerName = props['Offer Name']?.title?.[0]?.plain_text || 'Unnamed Offer';
+  const vaultId = props['Bundle Vault ID']?.rich_text?.[0]?.plain_text;
+  const saleAmount = Number(props['Sale Amount']?.number || 0);
+  const currency = props['Currency']?.rich_text?.[0]?.plain_text || 'USD';
+  const saleDate = props['Sale Date']?.date?.start;
+
+  if (!vaultId || !saleAmount) return; // skip incomplete rows
+
+  const { sale, payouts, bundle } = await upsertSale({ offerName, vaultId, saleAmount, currency, saleDate });
+
+  // Notion: update Sales, show human-readable split
+  const splitStr = `${bundle.override_pct} → ${payouts.map(p => `${p.role}: $${p.amount.toFixed(2)}`).join(' | ')}`;
+  await updateNotionSalesRow({ vaultId, offerName, saleAmount, saleId: sale.id, split: splitStr });
+
+  // Notion: add payout rows
+  for (const p of payouts) {
+    await createNotionPayoutRow({ saleId: sale.id, recipient: p.recipient, role: p.role, amount: p.amount, currency });
+  }
+}
+
+async function pullNewSalesFromNotionAndSync() {
+  // Get the latest ~25 edits; you can refine with filters later
+  const resp = await notion.databases.query({ database_id: process.env.NOTION_DB_SALES, page_size: 25 });
+  for (const page of resp.results) {
+    await syncOneSaleFromNotionSalesRow(page);
+  }
+}
+
+async function main() {
+  // 1) Process any new/edited Sales rows in Notion into Supabase (computes payouts)
+  await pullNewSalesFromNotionAndSync();
+
+  // 2) Recompute Dashboard metrics
+  await upsertDashboardMetrics();
+
+  console.log('Sync complete');
+}
+
+main().catch(err => { console.error(err); process.exit(1); });
+
