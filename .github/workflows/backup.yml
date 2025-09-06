@@ -1,9 +1,9 @@
 name: Nightly CSV Backup
 
 on:
+  work_dispatch:
   schedule:
     - cron: "0 16 * * *"   # 00:00 Asia/Manila (~16:00 UTC)
-  workflow_dispatch:
 
 jobs:
   backup:
