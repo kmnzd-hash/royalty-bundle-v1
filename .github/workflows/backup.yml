@@ -1,7 +1,7 @@
 name: Nightly CSV Backup
 
 on:
-  work_dispatch:
+  workflow_dispatch:
   schedule:
     - cron: "0 16 * * *"   # 00:00 Asia/Manila (~16:00 UTC)
 
@@ -35,3 +35,4 @@ jobs:
           git add exports/*.csv || true
           git commit -m "nightly backup $(date -u +%Y-%m-%dT%H:%M:%SZ)" || echo "no changes"
           git push
+
