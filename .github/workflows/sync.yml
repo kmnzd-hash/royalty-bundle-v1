@@ -1,0 +1,26 @@
+name: Sync Royalties
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *" # every 15 minutes
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci || npm i
+      - run: node scripts/sync.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DB_BUNDLES: ${{ secrets.NOTION_DB_BUNDLES }}
+          NOTION_DB_SALES: ${{ secrets.NOTION_DB_SALES }}
+          NOTION_DB_PAYOUTS: ${{ secrets.NOTION_DB_PAYOUTS }}
+          NOTION_DB_DASHBOARD: ${{ secrets.NOTION_DB_DASHBOARD }}
+
