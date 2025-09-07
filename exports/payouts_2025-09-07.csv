@@ -8,6 +8,15 @@ id,sale_id,recipient_role,recipient_id,pct,amount,status,notion_sync,notion_page
 229,78,ip_holder,,,,queued,false,,2025-09-07T13:32:34.996937+00:00,,
 230,78,creator,,,,queued,false,,2025-09-07T13:32:34.996937+00:00,,
 231,78,referrer,,,,queued,false,,2025-09-07T13:32:34.996937+00:00,,
+235,80,ip_holder,,,,queued,false,,2025-09-07T14:29:53.484268+00:00,,
+236,80,creator,,,,queued,false,,2025-09-07T14:29:53.484268+00:00,,
+237,80,referrer,,,,queued,false,,2025-09-07T14:29:53.484268+00:00,,
+241,82,ip_holder,,,,queued,false,,2025-09-07T14:51:35.740437+00:00,,
+242,82,creator,,,,queued,false,,2025-09-07T14:51:35.740437+00:00,,
+243,82,referrer,,,,queued,false,,2025-09-07T14:51:35.740437+00:00,,
+247,84,ip_holder,,,,queued,false,,2025-09-07T15:39:50.426545+00:00,,
+248,84,creator,,,,queued,false,,2025-09-07T15:39:50.426545+00:00,,
+249,84,referrer,,,,queued,false,,2025-09-07T15:39:50.426545+00:00,,
 3,1,referrer,R101,60,6000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
 4,2,ip_holder,Nestwell Holdings,20,3000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
 5,2,creator,C9999,20,3000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
@@ -29,3 +38,12 @@ id,sale_id,recipient_role,recipient_id,pct,amount,status,notion_sync,notion_page
 232,79,ip_holder,,,,queued,false,,2025-09-07T13:51:18.72845+00:00,,
 233,79,creator,,,,queued,false,,2025-09-07T13:51:18.72845+00:00,,
 234,79,referrer,,,,queued,false,,2025-09-07T13:51:18.72845+00:00,,
+238,81,ip_holder,,,,queued,false,,2025-09-07T14:40:43.650556+00:00,,
+239,81,creator,,,,queued,false,,2025-09-07T14:40:43.650556+00:00,,
+240,81,referrer,,,,queued,false,,2025-09-07T14:40:43.650556+00:00,,
+244,83,ip_holder,,,,queued,false,,2025-09-07T15:27:52.531364+00:00,,
+245,83,creator,,,,queued,false,,2025-09-07T15:27:52.531364+00:00,,
+246,83,referrer,,,,queued,false,,2025-09-07T15:27:52.531364+00:00,,
+250,85,ip_holder,,,,queued,false,,2025-09-07T15:51:45.562613+00:00,,
+251,85,creator,,,,queued,false,,2025-09-07T15:51:45.562613+00:00,,
+252,85,referrer,,,,queued,false,,2025-09-07T15:51:45.562613+00:00,,
