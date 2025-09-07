@@ -1,0 +1,31 @@
+id,sale_id,recipient_role,recipient_id,pct,amount,status,notion_sync,notion_page_url,created_at,sent_at,currency
+217,74,ip_holder,,,,queued,false,,2025-09-07T13:02:06.79261+00:00,,
+218,74,creator,,,,queued,false,,2025-09-07T13:02:06.79261+00:00,,
+219,74,referrer,,,,queued,false,,2025-09-07T13:02:06.79261+00:00,,
+223,76,ip_holder,,,,queued,false,,2025-09-07T13:08:24.574129+00:00,,
+224,76,creator,,,,queued,false,,2025-09-07T13:08:24.574129+00:00,,
+225,76,referrer,,,,queued,false,,2025-09-07T13:08:24.574129+00:00,,
+229,78,ip_holder,,,,queued,false,,2025-09-07T13:32:34.996937+00:00,,
+230,78,creator,,,,queued,false,,2025-09-07T13:32:34.996937+00:00,,
+231,78,referrer,,,,queued,false,,2025-09-07T13:32:34.996937+00:00,,
+3,1,referrer,R101,60,6000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+4,2,ip_holder,Nestwell Holdings,20,3000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+5,2,creator,C9999,20,3000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+6,2,referrer,R109,60,9000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+7,3,ip_holder,Nestwell Holdings,20,2000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+8,3,creator,C5678,20,2000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+9,3,referrer,R101,60,6000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+10,4,ip_holder,Nestwell Holdings,20,1000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+11,4,creator,C1111,20,1000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+12,4,referrer,R303,60,3000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+1,1,ip_holder,Nestwell Holdings,20,2000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+2,1,creator,C5678,20,2000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+220,75,ip_holder,,,,queued,false,,2025-09-07T13:05:32.539683+00:00,,
+221,75,creator,,,,queued,false,,2025-09-07T13:05:32.539683+00:00,,
+222,75,referrer,,,,queued,false,,2025-09-07T13:05:32.539683+00:00,,
+226,77,ip_holder,,,,queued,false,,2025-09-07T13:15:33.811157+00:00,,
+227,77,creator,,,,queued,false,,2025-09-07T13:15:33.811157+00:00,,
+228,77,referrer,,,,queued,false,,2025-09-07T13:15:33.811157+00:00,,
+232,79,ip_holder,,,,queued,false,,2025-09-07T13:51:18.72845+00:00,,
+233,79,creator,,,,queued,false,,2025-09-07T13:51:18.72845+00:00,,
+234,79,referrer,,,,queued,false,,2025-09-07T13:51:18.72845+00:00,,

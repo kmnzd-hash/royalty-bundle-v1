@@ -1,0 +1,23 @@
+id,offer_id,sale_amount,sale_currency,buyer,sale_date,vault_id,creator_id,referrer_id,reuse_event,override_pct,ip_holder,bundle_id,offer_name,bundle_vault_id
+47,1,10000,PHP,Alice Buyer,2025-09-05T01:16:37.300563+00:00,V1234,C5678,R101,GP01,20/20/60,Nestwell Holdings,91e14383-9de9-49ce-8f8f-fd5bee43f839,test,vault-sample
+48,2,15000,PHP,Bob Buyer,2025-09-05T01:16:37.300563+00:00,V9999,C9999,R109,GP02,20/20/60,Nestwell Holdings,91e14383-9de9-49ce-8f8f-fd5bee43f839,test,vault-sample
+49,1,10000,PHP,Carol Buyer,2025-09-05T01:16:37.300563+00:00,V1234,C5678,R101,GP01,20/20/60,Nestwell Holdings,91e14383-9de9-49ce-8f8f-fd5bee43f839,test,vault-sample
+1,1,10000,PHP,Alice Buyer,2025-08-28T16:37:53.767032+00:00,V1234,C5678,R101,GP01,20/20/60,Nestwell Holdings,91e14383-9de9-49ce-8f8f-fd5bee43f839,test 1,vault-sample
+2,2,15000,PHP,Bob Buyer,2025-08-28T16:37:53.767032+00:00,V9999,C9999,R109,GP02,20/20/60,Nestwell Holdings,91e14383-9de9-49ce-8f8f-fd5bee43f839,test 2,vault-sample
+3,1,10000,PHP,Carol Buyer,2025-08-28T16:37:53.767032+00:00,V1234,C5678,R101,GP01,20/20/60,Nestwell Holdings,91e14383-9de9-49ce-8f8f-fd5bee43f839,test 3,vault-sample
+4,3,5000,PHP,Dave Buyer,2025-08-28T16:37:53.767032+00:00,V7777,C1111,R303,GP03,20/20/60,Nestwell Holdings,91e14383-9de9-49ce-8f8f-fd5bee43f839,test 4,vault-sample
+6,,10000,PHP,sample1,2025-08-30T01:53:51+00:00,,,,,,,91e14383-9de9-49ce-8f8f-fd5bee43f839,test,vault-sample
+50,3,5000,PHP,Dave Buyer,2025-09-05T01:16:37.300563+00:00,V7777,C1111,R303,GP03,20/20/60,Nestwell Holdings,91e14383-9de9-49ce-8f8f-fd5bee43f839,test,vault-sample
+67,52,10000,USD,,2025-09-05T00:00:00+00:00,,,,,,,,,
+68,53,10000,USD,,2025-09-05T00:00:00+00:00,,,,,,,,,
+69,54,10000,USD,,2025-09-05T00:00:00+00:00,,,,,,,,,
+70,55,10000,USD,,2025-09-05T00:00:00+00:00,,,,,,,,,
+71,56,10000,USD,,2025-09-05T00:00:00+00:00,,,,,,,,,
+72,57,10000,USD,,2025-09-05T00:00:00+00:00,,,,,,,,,
+73,58,10000,USD,,2025-09-05T00:00:00+00:00,,,,,,,,,
+74,59,10000,USD,,2025-09-05T00:00:00+00:00,,,,,,,,,
+75,61,10000,USD,,2025-09-05T00:00:00+00:00,,,,,,,,,
+76,62,10000,USD,,2025-09-05T00:00:00+00:00,,,,,,,,,
+77,63,10000,USD,,2025-09-05T00:00:00+00:00,,,,,,,,,
+78,64,10000,USD,,2025-09-05T00:00:00+00:00,,,,,,,,,
+79,65,10000,USD,,2025-09-05T00:00:00+00:00,,,,,,,,,

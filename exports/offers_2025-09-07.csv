@@ -1,0 +1,22 @@
+id,config_id,name,price,currency,bundle_id,is_active
+1,1,Growth Pack,10000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+2,1,Premium Pack,15000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+3,2,Starter Pack,5000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+34,1,Growth Pack,10000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+35,1,Premium Pack,15000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+36,2,Starter Pack,5000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+50,,Starter Pack,10000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+51,,Starter Pack,10000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+52,,Starter Pack,10000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+53,,Starter Pack,10000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+54,,Starter Pack,10000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+55,,Starter Pack,10000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+56,,Starter Pack,10000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+57,,Starter Pack,10000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+58,,Starter Pack,10000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+59,,Starter Pack,10000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+61,,Starter Pack,10000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+62,,Starter Pack,10000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+63,,Starter Pack,10000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+64,,Starter Pack,10000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+65,,Starter Pack,10000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
