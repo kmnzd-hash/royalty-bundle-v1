@@ -6,7 +6,7 @@ import { Client } from '@notionhq/client';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
 
-const dashboardDbId = process.env.NOTION_DASHBOARD_DATABASE_ID;
+const dashboardDbId = process.env.NOTION_DB_DASHBOARD;
 
 async function getMetrics() {
   // Offers count
@@ -25,7 +25,7 @@ async function upsertDashboard({ offersNum, salesNum, queuedSum }) {
   const page = q.results?.[0];
 
   const props = {
-    'Name': { title: [{ text: { content: 'Live' } }] },
+    'Last Synced Date': { title: [{ text: { content: 'Live' } }] },
     'Offers': { number: Number(offersNum) },
     'Sales': { number: Number(salesNum) },
     'Royalties Queued': { number: Math.round(queuedSum * 100) / 100 }

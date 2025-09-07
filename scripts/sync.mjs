@@ -10,7 +10,7 @@ import Papa from 'papaparse';
  * NOTION_TOKEN
  * NOTION_DB_BUNDLES
  * NOTION_DB_SALES
- * NOTION_DB_PAYOUTS
+ * NOTION_PAYOUTS_DATABASE_ID
  * NOTION_DB_DASHBOARD
  */
 
@@ -70,7 +70,7 @@ async function upsertSale({ offerName, vaultId, saleAmount, currency='USD', sale
     if (offer?.id) {
       offerId = offer.id;
     } else {
-      const { data: ins, error: insErr } = await supabase.from('offers').insert({ bundle_id: bundle.id, name: offerName, is_active: true }).select('id').single();
+      const { data: ins, error: insErr } = await supabase.from('offers').insert({ bundle_id: bundle.id, name: offerName, is_active: true, price: saleAmount }).select('id').single();
       if (insErr) throw insErr;
       offerId = ins.id;
     }
@@ -78,7 +78,7 @@ async function upsertSale({ offerName, vaultId, saleAmount, currency='USD', sale
 
   // 3) Insert sale
   const { data: sale, error: saleErr } = await supabase.from('sales')
-    .insert({ offer_id: offerId, sale_date: saleDate ?? new Date().toISOString(), gross_amount: saleAmount, currency })
+    .insert({ offer_id: offerId, sale_date: saleDate ?? new Date().toISOString(), sale_amount: saleAmount, sale_currency: currency })
     .select('*').single();
   if (saleErr) throw saleErr;
 
@@ -130,10 +130,10 @@ async function upsertDashboardMetrics() {
   const page = list.results[0];
 
   const props = {
-    'Name': title('Live'),
-    '#Offers': { number: offersNum ?? 0 },
-    '#Sales': { number: salesNum ?? 0 },
-    '#Royalties Queued': { number: Math.round(queuedSum * 100) / 100 },
+    'Last Synced Date': title('Live'),
+    'Offers': { number: offersNum ?? 0 },
+    'Sales': { number: salesNum ?? 0 },
+    'Royalties Queued': { number: Math.round(queuedSum * 100) / 100 },
   };
 
   if (!page) {
@@ -147,12 +147,12 @@ async function upsertDashboardMetrics() {
 }
 
 async function createNotionPayoutRow({ saleId, recipient, role, amount, currency }) {
-  return notion.pages.create({
-    parent: { database_id: process.env.NOTION_DB_PAYOUTS },
+  return await notion.pages.create({
+    parent: { database_id: process.env.NOTION_DB_PAYOUTS },   //process.env.NOTION_DB_PAYOUTS
     properties: {
-      'Sale ID': text(saleId),
-      'Recipient': title(recipient),
-      'Role': { select: { name: role } },
+      'Sale': { title: [{ text: { content: saleId.toString() } }]},   //text(saleId),
+      'Recipient': { rich_text: [{ text: { content: recipient } }] },//title(recipient),
+      'Role': { rich_text: [{ text: { content: role || '' } }] },//{ select: { name: role } },
       'Amount': { number: Number(amount) },
       'Currency': text(currency),
       'Status': { select: { name: 'queued' } }
@@ -202,7 +202,7 @@ async function syncOneSaleFromNotionSalesRow(page) {
 
   // Notion: update Sales, show human-readable split
   const splitStr = `${bundle.override_pct} → ${payouts.map(p => `${p.role}: $${p.amount.toFixed(2)}`).join(' | ')}`;
-  await updateNotionSalesRow({ vaultId, offerName, saleAmount, saleId: sale.id, split: splitStr });
+  await updateNotionSalesRow({ vaultId: vaultId, offerName: offerName, saleAmount: saleAmount, saleId: sale.id, split: splitStr });
 
   // Notion: add payout rows
   for (const p of payouts) {

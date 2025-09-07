@@ -10,7 +10,7 @@ const supabase = createClient(
 
 // Initialize Notion
 const notion = new NotionClient({ auth: process.env.NOTION_TOKEN });
-const payoutsDbId = process.env.NOTION_PAYOUTS_DATABASE_ID;
+const payoutsDbId = process.env.NOTION_DB_PAYOUTS;
 
 async function main() {
   // Fetch payouts from Supabase
