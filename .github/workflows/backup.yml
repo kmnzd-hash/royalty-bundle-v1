@@ -39,3 +39,4 @@ jobs:
           git push https://$GH_PAT@github.com/kmnzd-hash/royalty-bundle-v1.git HEAD:main
 
 
+
