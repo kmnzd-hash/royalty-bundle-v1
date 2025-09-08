@@ -1,0 +1,55 @@
+id,sale_id,recipient_role,recipient_id,pct,amount,status,notion_sync,notion_page_url,created_at,sent_at,currency
+337,114,ip_holder,,,,queued,false,,2025-09-08T08:50:31.085726+00:00,,
+338,114,creator,,,,queued,false,,2025-09-08T08:50:31.085726+00:00,,
+339,114,referrer,,,,queued,false,,2025-09-08T08:50:31.085726+00:00,,
+340,115,ip_holder,,,,queued,false,,2025-09-08T09:38:53.022982+00:00,,
+341,115,creator,,,,queued,false,,2025-09-08T09:38:53.022982+00:00,,
+342,115,referrer,,,,queued,false,,2025-09-08T09:38:53.022982+00:00,,
+343,116,ip_holder,,,,queued,false,,2025-09-08T09:51:10.767554+00:00,,
+344,116,creator,,,,queued,false,,2025-09-08T09:51:10.767554+00:00,,
+345,116,referrer,,,,queued,false,,2025-09-08T09:51:10.767554+00:00,,
+346,117,ip_holder,,,,queued,false,,2025-09-08T10:42:07.672491+00:00,,
+347,117,creator,,,,queued,false,,2025-09-08T10:42:07.672491+00:00,,
+348,117,referrer,,,,queued,false,,2025-09-08T10:42:07.672491+00:00,,
+349,118,ip_holder,,,,queued,false,,2025-09-08T10:52:55.187126+00:00,,
+350,118,creator,,,,queued,false,,2025-09-08T10:52:55.187126+00:00,,
+351,118,referrer,,,,queued,false,,2025-09-08T10:52:55.187126+00:00,,
+352,119,ip_holder,,,,queued,false,,2025-09-08T11:27:09.215866+00:00,,
+353,119,creator,,,,queued,false,,2025-09-08T11:27:09.215866+00:00,,
+354,119,referrer,,,,queued,false,,2025-09-08T11:27:09.215866+00:00,,
+355,120,ip_holder,,,,queued,false,,2025-09-08T11:41:57.144931+00:00,,
+356,120,creator,,,,queued,false,,2025-09-08T11:41:57.144931+00:00,,
+357,120,referrer,,,,queued,false,,2025-09-08T11:41:57.144931+00:00,,
+358,121,ip_holder,,,,queued,false,,2025-09-08T11:52:34.856442+00:00,,
+359,121,creator,,,,queued,false,,2025-09-08T11:52:34.856442+00:00,,
+360,121,referrer,,,,queued,false,,2025-09-08T11:52:34.856442+00:00,,
+361,122,ip_holder,,,,queued,false,,2025-09-08T13:38:38.418754+00:00,,
+362,122,creator,,,,queued,false,,2025-09-08T13:38:38.418754+00:00,,
+363,122,referrer,,,,queued,false,,2025-09-08T13:38:38.418754+00:00,,
+364,123,ip_holder,,,,queued,false,,2025-09-08T13:53:55.997279+00:00,,
+365,123,creator,,,,queued,false,,2025-09-08T13:53:55.997279+00:00,,
+366,123,referrer,,,,queued,false,,2025-09-08T13:53:55.997279+00:00,,
+367,124,ip_holder,,,,queued,false,,2025-09-08T14:42:24.800494+00:00,,
+368,124,creator,,,,queued,false,,2025-09-08T14:42:24.800494+00:00,,
+369,124,referrer,,,,queued,false,,2025-09-08T14:42:24.800494+00:00,,
+370,125,ip_holder,,,,queued,false,,2025-09-08T14:54:14.398693+00:00,,
+371,125,creator,,,,queued,false,,2025-09-08T14:54:14.398693+00:00,,
+372,125,referrer,,,,queued,false,,2025-09-08T14:54:14.398693+00:00,,
+373,126,ip_holder,,,,queued,false,,2025-09-08T15:36:01.008412+00:00,,
+374,126,creator,,,,queued,false,,2025-09-08T15:36:01.008412+00:00,,
+3,1,referrer,R101,60,6000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+4,2,ip_holder,Nestwell Holdings,20,3000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+5,2,creator,C9999,20,3000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+6,2,referrer,R109,60,9000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+7,3,ip_holder,Nestwell Holdings,20,2000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+8,3,creator,C5678,20,2000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+9,3,referrer,R101,60,6000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+10,4,ip_holder,Nestwell Holdings,20,1000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+11,4,creator,C1111,20,1000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+12,4,referrer,R303,60,3000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+375,126,referrer,,,,queued,false,,2025-09-08T15:36:01.008412+00:00,,
+376,127,ip_holder,,,,queued,false,,2025-09-08T15:52:58.165446+00:00,,
+377,127,creator,,,,queued,false,,2025-09-08T15:52:58.165446+00:00,,
+378,127,referrer,,,,queued,false,,2025-09-08T15:52:58.165446+00:00,,
+1,1,ip_holder,Nestwell Holdings,20,2000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP
+2,1,creator,C5678,20,2000,queued,false,,2025-08-28T16:37:53.767032+00:00,,PHP

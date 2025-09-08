@@ -1,0 +1,4 @@
+id,config_id,name,price,currency,bundle_id,is_active
+1,1,Growth Pack,10000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+2,1,Premium Pack,15000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
+3,2,Starter Pack,5000,PHP,91e14383-9de9-49ce-8f8f-fd5bee43f839,true
