@@ -1,0 +1,4 @@
+id,sale_id,recipient_role,recipient_id,pct,amount,status,notion_sync,notion_page_url,created_at,sent_at,currency
+481,162,ip_holder,Vault IP LLC,20,4000,queued,false,,2025-09-09T13:37:52.077624+00:00,,
+482,162,creator,C-001,20,4000,queued,false,,2025-09-09T13:37:52.077624+00:00,,
+483,162,referrer,R-001,60,12000,queued,false,,2025-09-09T13:37:52.077624+00:00,,
