@@ -1,0 +1,2 @@
+offer_id,offer_name,price,currency,bundle_id,is_active,created_at,updated_at,offer_uuid
+92,Test Offer,100,USD,e9a33b0a-8dce-43d3-a4b0-8c1e37eb9eee,true,2025-09-11T12:20:03.396439+00:00,2025-09-11T12:20:03.396439+00:00,862f403a-4d8d-40bf-aea6-64385ef0bd9a
