@@ -1,0 +1,5 @@
+payout_id,recipient_role,recipient_id,pct,amount,status,notion_sync,notion_page_url,created_at,sent_at,currency,sale_uuid
+486,,,,10000,queued,false,,2025-09-13T12:37:49.2851+00:00,,,9ead4780-4f4f-4d8f-90b9-75406ae06259
+487,ip_holder,Vault IP LLC,20,2000,queued,false,,2025-09-13T12:37:49.2851+00:00,,,9ead4780-4f4f-4d8f-90b9-75406ae06259
+488,creator,Tal-01,20,2000,queued,false,,2025-09-13T12:37:49.2851+00:00,,,9ead4780-4f4f-4d8f-90b9-75406ae06259
+489,referrer,Ref-01,60,6000,queued,false,,2025-09-13T12:37:49.2851+00:00,,,9ead4780-4f4f-4d8f-90b9-75406ae06259
