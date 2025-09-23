@@ -1,0 +1,5 @@
+gross_amount,sale_currency,buyer_id,sale_date,vault_id,creator_id,referrer_id,override_pct,ip_holder,bundle_id,offer_name,offer_id,created_at,sale_id
+10000.00,USD,buyer768,2025-09-13 06:16:07+00,vault-01,Tal-01,Ref-09,60/20/20,Vault IP LLC,51470413-f458-4d03-be0c-d6b42ca17f24,Growth Pack,73953108-dd8c-4776-a452-60520038d2bc,2025-09-13 06:15:47+00,1d315a99-903c-4355-9a5c-9b7104926c5d
+10000.00,USD,buyer112,2025-09-11 06:05:00+00,vault-01,Tal-01,Ref-04,60/20/20,Vault IP LLC,51470413-f458-4d03-be0c-d6b42ca17f24,Growth Pack,73953108-dd8c-4776-a452-60520038d2bc,2025-09-11 06:04:43+00,adac77d3-a863-42ed-aabd-83751e45e809
+5000.00,USD,buyer001,2025-09-10 05:57:17+00,vault-01,Tal-01,Ref-01,60/20/20,Vault IP LLC,51470413-f458-4d03-be0c-d6b42ca17f24,Pro-Bonus Demo,e92d20f4-3f53-4d00-be44-9e17939cb5ee,2025-09-10 05:56:57+00,c3f440ef-ad4f-4fe8-af48-b18aa000e0ae
+10000.00,USD,buyer098,2025-09-12 06:07:34+00,vault-02,Tal-02,Ref-05,60/20/20,Vault IP LLC,7fe91958-2c1c-4037-b3a5-479ea244f7d9,Nestwell Retreat,468b4013-8cd7-48eb-b58a-b5d8e65ce292,2025-09-12 06:07:19+00,e7420313-6110-41ba-87a9-f6a5991d815a
