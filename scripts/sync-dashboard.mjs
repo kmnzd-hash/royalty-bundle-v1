@@ -24,11 +24,13 @@ async function upsertDashboard({ offersNum, salesNum, queuedSum }) {
   const q = await notion.databases.query({ database_id: dashboardDbId, page_size: 1 });
   const page = q.results?.[0];
 
+  const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+
   const props = {
-    'Last Synced Date': { title: [{ text: { content: 'Live' } }] },
-    'Offers': { number: Number(offersNum) },
-    'Sales': { number: Number(salesNum) },
-    'Royalties Queued': { number: Math.round(queuedSum * 100) / 100 }
+    '#Offers': { number: Number(offersNum) },
+    '#Sales': { number: Number(salesNum) },
+    'Royalties Queued': { number: Math.round(queuedSum * 100) / 100 },
+    'Last Synced': { rich_text: [{ text: { content: now } }] },
   };
 
   if (!page) {

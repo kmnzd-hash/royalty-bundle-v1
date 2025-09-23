@@ -15,24 +15,40 @@ async function main() {
   if (error) throw error;
 
   for (const sale of sales) {
-   // console.log(sale);
-    // 2. Find bundle in Notion by vault_id
-    const bundleVaultId = sale.bundle_vault_id; // Make sure this column exists in Supabase
-    
+    const bundleVaultId = sale.vault_id;
+
+    // 2. Pull payouts for this sale
+    const { data: payoutsRows, error: payoutsErr } = await supabase
+      .from('payouts')
+      .select('*')
+      .eq('sale_id', sale.sale_id);
+
+    if (payoutsErr) throw payoutsErr;
+
+    // 3. Build split string (only allowed roles)
+    const allowedRoles = ['creator', 'ip_holder', 'referrer'];
+    const splitParts = (payoutsRows || [])
+      .filter((p) => allowedRoles.includes(p.recipient_role))
+      .map((p) => `${p.recipient_role}: ${Number(p.amount).toFixed(2)}`);
+
+    const splitStr = splitParts.length ? splitParts.join(' | ') : 'no payouts';
+
+    // 4. Push to Notion
     await notion.pages.create({
-      parent: { database_id: process.env.NOTION_SALES_DATABASE_ID },
+      parent: { database_id: process.env.NOTION_DB_SALES },
       properties: {
-        "Offer Name": { title: [{ text: { content: sale.offer_name } }] },
-        "Bundle Vault ID": { rich_text: [{ text: { content: bundleVaultId } }] },
-        "Sale Amount": { number: Number(sale.sale_amount) },
-        "Currency": { rich_text: [{ text: { content: sale.sale_currency || 'PHP' } }] },
-        "Sale Date": { date: { start: sale.sale_date } } 
+        "Offer Name": { title: [{ text: { content: sale.offer_name || '' } }] },
+        "Bundle Vault ID": { rich_text: [{ text: { content: bundleVaultId || '' } }] },
+        "Sale Amount": { number: Number(sale.gross_amount) || 0 },
+        "Currency": { rich_text: [{ text: { content: sale.sale_currency || 'USD' } }] },
+        "Sale Date": sale.sale_date ? { date: { start: sale.sale_date } } : undefined,
+        "Calculated Split": { rich_text: [{ text: { content: splitStr } }] }, // ✅ added
+        "Linked Sale ID": { rich_text: [{ text: { content: String(sale.sale_id) } }] }, // ✅ optional link
       },
     });
   }
 
-  console.log('✅ Sales synced to Notion');
+  console.log('✅ Sales synced to Notion with Calculated Split');
 }
 
 main().catch(console.error);
-
