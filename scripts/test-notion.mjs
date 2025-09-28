@@ -2,14 +2,19 @@ import 'dotenv/config';
 import { Client } from '@notionhq/client';
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
+const dbId = process.env.NOTION_DB_BUNDLES;  // test bundles DB first
 
-async function main() {
-  const result = await notion.databases.query({
-    database_id: process.env.NOTION_DASHBOARD_DATABASE_ID,
-    page_size: 1
-  });
-  console.log('Query OK:', result.results.length, 'rows found');
+async function test() {
+  try {
+    const resp = await notion.databases.query({
+      database_id: dbId,
+      page_size: 3,
+    });
+    console.log("✅ Notion DB query success");
+    console.log(JSON.stringify(resp.results, null, 2));
+  } catch (err) {
+    console.error("❌ Notion error:", err.message);
+  }
 }
 
-main().catch(console.error);
-
+test();
