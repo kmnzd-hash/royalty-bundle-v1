@@ -1,0 +1,2 @@
+id,name,description,creator_id,base_percentage,created_at
+4,Default Pool,Base pool for testing foreign key links,8,100,2025-10-04T14:06:11.711749+00:00
