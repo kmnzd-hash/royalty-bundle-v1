@@ -119,7 +119,7 @@ async function findNotionPayoutPageBySaleAndRole(notionClient, saleId, role) {
       database_id: NOTION_PROPS.DB.PAYOUTS,
       filter: {
         and: [
-          { property: NOTION_PROPS.PAYOUT_SALE_ID, rich_text: { equals: String(saleId) } },
+          { property: NOTION_PROPS.PAYOUT_SALE_ID, title: { equals: String(saleId) } }, // title type
           { property: NOTION_PROPS.PAYOUT_ROLE, select: { equals: role } }
         ]
       },
@@ -202,82 +202,82 @@ async function upsertSale({ offerName, vaultId, saleAmount, currency = 'USD', sa
   }
 
   // === PAYOUTS ===
-  // compute split recipients from bundle override pct (creator/ip_holder/referrer if present)
   const split = parseSplit(bundle.override_pct || sale.override_pct);
-  const splitRecipients = [];
-  if (bundle.creator_id) splitRecipients.push({ id: bundle.creator_id, role: 'creator' });
-  if (bundle.ip_holder) splitRecipients.push({ id: bundle.ip_holder, role: 'ip_holder' });
-  if (bundle.referrer_id) splitRecipients.push({ id: bundle.referrer_id, role: 'referrer' });
 
-  const splitPayoutRows = calcPayouts(Number(sale.gross_amount), split, splitRecipients);
+  // Build split candidates only for real IDs
+  const splitCandidates = [];
+  if (bundle.creator_id) splitCandidates.push({ id: bundle.creator_id, role: 'creator' });
+  if (bundle.ip_holder) splitCandidates.push({ id: bundle.ip_holder, role: 'ip_holder' });
+  if (bundle.referrer_id) splitCandidates.push({ id: bundle.referrer_id, role: 'referrer' });
 
-  // executor must always use sale.gross_amount (per SOP)
-  const executorPayout = bundle.entity_to
-    ? [{ id: bundle.entity_to, role: 'executor', amount: Number(sale.gross_amount) }]
-    : [];
+  const splitPayoutRows = calcPayouts(Number(sale.gross_amount), split, splitCandidates);
 
-  const allPayouts = [...executorPayout, ...splitPayoutRows];
+  // ✅ Executor: always exists (fallback to 'N/A' if missing entity_to)
+  const executorPayout = [{
+    id: bundle.entity_to || 'N/A',
+    role: 'executor',
+    amount: Number(sale.gross_amount),
+  }];
 
-  for (const p of allPayouts) {
-    // Defensive: skip referrer if recipient id missing (we also avoid adding it above)
-    if (p.role === 'referrer' && !p.id) continue;
+  // ✅ Base payouts list: executor + split recipients (creator/ip_holder + referrer if real)
+  const payoutRowsToPersist = [
+    ...executorPayout,
+    ...splitPayoutRows.map(r => ({
+      id: r.id,
+      role: r.role,
+      amount: r.amount,
+    })),
+  ];
 
-    // If recipient id missing for other roles, skip creating payout (avoid 'N/A' insertion).
-    if (!p.id) {
-      console.warn(`Skipping payout for role=${p.role} because recipient id is missing. sale=${sale.sale_id}`);
-      continue;
-    }
+  // === UPSERT PAYOUTS INTO SUPABASE ===
+  for (const p of payoutRowsToPersist) {
+    // Defensive: ensure a recipient_id is always present
+    const recipientIdToWrite = p.id || 'N/A';
 
-    const { data: existing, error: findErr } = await supabase
-      .from('payouts')
-      .select('status, payout_id')
-      .eq('sale_id', sale.sale_id)
-      .eq('recipient_role', p.role)
-      .maybeSingle();
+    const insertObj = {
+      payout_id: crypto.randomUUID(),
+      sale_id: sale.sale_id,
+      recipient_id: recipientIdToWrite,
+      recipient_role: p.role,
+      amount: Number(p.amount) || 0,
+      currency: sale.sale_currency || 'USD',
+      status: 'queued',
+    };
 
-    if (findErr) throw findErr;
-
-    if (existing) {
-      const { error: updateErr } = await supabase
-        .from('payouts')
-        .update({ amount: p.amount, currency: sale.sale_currency })
-        .eq('sale_id', sale.sale_id)
-        .eq('recipient_role', p.role);
-      if (updateErr) throw updateErr;
-    } else {
-      const insertObj = {
-        payout_id: crypto.randomUUID(),
-        sale_id: sale.sale_id,
-        recipient_id: p.id,
-        recipient_role: p.role,
-        amount: p.amount,
-        currency: sale.sale_currency,
-        status: 'queued',
-      };
-      const { data: inserted, error: insertErr } = await supabase
+    try {
+      const { error: insertErr } = await supabase
         .from('payouts')
         .insert(insertObj)
         .select()
         .single();
 
       if (insertErr) {
-        // try graceful resolution for unique conflicts
-        if (String(insertErr.message || insertErr.code).includes('duplicate') || String(insertErr.code).includes('23505')) {
-          await supabase.from('payouts').update({
-            amount: p.amount,
-            currency: sale.sale_currency
-          }).match({ sale_id: sale.sale_id, recipient_role: p.role });
+        // Handle unique constraint conflict by updating
+        if (String(insertErr.code || '').includes('23505') || String(insertErr.message || '').toLowerCase().includes('duplicate')) {
+          const { error: updErr } = await supabase
+            .from('payouts')
+            .update({
+              amount: insertObj.amount,
+              currency: insertObj.currency,
+              status: insertObj.status,
+            })
+            .match({ sale_id: insertObj.sale_id, recipient_role: insertObj.recipient_role });
+          if (updErr) throw updErr;
         } else {
           throw insertErr;
         }
-      } else {
-        // inserted successfully
       }
+    } catch (err) {
+      console.error('payout upsert failed for', insertObj, err?.message || err);
+      throw err;
     }
   }
 
+  // NOTE:
+  // - Referrer rows are only written if bundle.referrer_id exists.
+  // - Executor always exists (N/A fallback if missing).
+  // - We never persist payouts with recipient_id === null.
   return sale;
-}
 
 // === Notion helpers ===
 async function upsertDashboardMetrics() {
@@ -426,15 +426,18 @@ async function pushSupabaseSalesToNotion() {
       await notion.pages.update({ page_id: q.results[0].id, properties: props });
     }
 
-    // Ensure Payouts exist in Notion for this sale (create or update by Sale ID + Role)
+        // Ensure Payouts exist in Notion for this sale (create or update by Sale ID + Role)
     if (NOTION_PROPS.DB.PAYOUTS) {
       for (const p of (payoutsForSale || [])) {
-        // skip payouts where recipient_id is null/blank (means no recipient)
-        if (!p.recipient_id) continue;
+        // skip payouts where recipient_id is 'N/A' (no Notion page for missing referrer)
+        if (!p.recipient_id || p.recipient_id === 'N/A') continue;
 
+        // find existing Notion page by Sale ID (title) + Role
         const existingPage = await findNotionPayoutPageBySaleAndRole(notion, saleId, p.recipient_role);
+
+        // For Sale ID in Payouts DB we MUST use title type (adjust if your DB differs)
         const payoutProps = {
-          [NOTION_PROPS.PAYOUT_SALE_ID]: title(String(p.sale_id)),
+          [NOTION_PROPS.PAYOUT_SALE_ID]: { title: [{ text: { content: String(p.sale_id) } }] }, // title
           [NOTION_PROPS.PAYOUT_RECIPIENT]: text(String(p.recipient_id)),
           [NOTION_PROPS.PAYOUT_ROLE]: { select: { name: p.recipient_role } },
           [NOTION_PROPS.PAYOUT_AMOUNT]: { number: Number(p.amount) || 0 },
