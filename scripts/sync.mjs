@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Client as NotionClient } from '@notionhq/client';
 import crypto from 'node:crypto'; // for crypto.randomUUID()
 
-// ----------------- Notion property mapping (single source of truth) -----------------
+// ----------------- Notion property mapping -----------------
 const NOTION_PROPS = {
   DB: {
     BUNDLES: process.env.NOTION_DB_BUNDLES || null,
@@ -11,14 +11,11 @@ const NOTION_PROPS = {
     PAYOUTS: process.env.NOTION_DB_PAYOUTS || null,
     DASHBOARD: process.env.NOTION_DB_DASHBOARD || null
   },
-
-  // Dashboard
   DASH_OFFERS: '#Offers',
   DASH_SALES: '#Sales',
   DASH_ROYALTIES_QUEUED: 'Royalties Queued',
   DASH_LAST_SYNCED: 'Last Synced',
 
-  // Sales props
   SALES_OFFER_NAME: 'Offer Name',
   SALES_VAULT_ID: 'Bundle Vault ID',
   SALES_SALE_AMOUNT: 'Sale Amount',
@@ -27,7 +24,6 @@ const NOTION_PROPS = {
   SALES_CURRENCY: 'Currency',
   SALES_SALE_DATE: 'Sale Date',
 
-  // Bundle props
   BUNDLE_NAME: 'Name',
   BUNDLE_VAULT_ID: 'Vault ID',
   BUNDLE_TYPE: 'Bundle Type',
@@ -39,7 +35,6 @@ const NOTION_PROPS = {
   REFERRER_ID: 'Referrer ID',
   REUSE_EVENT: 'Reuse Event',
 
-  // Payout props
   PAYOUT_SALE_ID: 'Sale ID',
   PAYOUT_RECIPIENT: 'Recipient',
   PAYOUT_ROLE: 'Role',
@@ -48,26 +43,17 @@ const NOTION_PROPS = {
   PAYOUT_STATUS: 'Status',
   PAYOUT_PAYOUT_ID: 'Payout ID'
 };
-// ------------------------------------------------------------------------------------
+// ------------------------------------------------------------
 
-// ENV
-const {
-  SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY,
-  NOTION_TOKEN
-} = process.env;
-
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('Missing Supabase env vars');
-}
-if (!NOTION_TOKEN) {
-  throw new Error('Missing Notion token');
-}
+// ENV setup
+const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, NOTION_TOKEN } = process.env;
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error('Missing Supabase env vars');
+if (!NOTION_TOKEN) throw new Error('Missing Notion token');
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 const notion = new NotionClient({ auth: NOTION_TOKEN });
 
-// Helpers
+// ----------------- Helper Functions -----------------
 const text = (s) => ({ rich_text: [{ type: 'text', text: { content: String(s ?? '') } }] });
 const title = (s) => ({ title: [{ type: 'text', text: { content: String(s ?? '') } }] });
 
@@ -94,24 +80,18 @@ function calcPayouts(gross, split, recipients) {
 async function findBundleByVaultId(vaultId, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const { data, error } = await supabase
-        .from('bundles')
-        .select('*')
-        .eq('vault_id', vaultId)
-        .limit(1);
-
+      const { data, error } = await supabase.from('bundles').select('*').eq('vault_id', vaultId).limit(1);
       if (error) throw error;
       return data?.[0] || null;
     } catch (err) {
       console.error(`❌ findBundleByVaultId failed (attempt ${attempt}):`, err.message || err);
       if (attempt === retries) throw err;
-      await new Promise(res => setTimeout(res, 1000 * attempt));
+      await new Promise((res) => setTimeout(res, 1000 * attempt));
     }
   }
   return null;
 }
 
-// Find a Notion Payout page by Sale ID + Role (returns page or null)
 async function findNotionPayoutPageBySaleAndRole(notionClient, saleId, role) {
   if (!NOTION_PROPS.DB.PAYOUTS) return null;
   try {
@@ -119,7 +99,7 @@ async function findNotionPayoutPageBySaleAndRole(notionClient, saleId, role) {
       database_id: NOTION_PROPS.DB.PAYOUTS,
       filter: {
         and: [
-          { property: NOTION_PROPS.PAYOUT_SALE_ID, title: { equals: String(saleId) } }, // title type
+          { property: NOTION_PROPS.PAYOUT_SALE_ID, title: { equals: String(saleId) } },
           { property: NOTION_PROPS.PAYOUT_ROLE, select: { equals: role } }
         ]
       },
@@ -132,11 +112,47 @@ async function findNotionPayoutPageBySaleAndRole(notionClient, saleId, role) {
   }
 }
 
-/**
- * upsertSale
- * - ensures sale row exists in Supabase
- * - creates/updates payouts in Supabase (skips referrer when missing)
- */
+// ----------------- Pre-flight Validation -----------------
+async function preflightValidateBundles() {
+  if (!NOTION_PROPS.DB.SALES) {
+    console.warn('No Notion Sales DB configured; skipping pre-flight bundle validation.');
+    return;
+  }
+
+  // Fetch all bundle vault_ids
+  const { data: allBundles, error: bundlesErr } = await supabase.from('bundles').select('vault_id');
+  if (bundlesErr) throw new Error(`Failed to fetch bundles: ${bundlesErr.message || bundlesErr}`);
+
+  const bundleSet = new Set((allBundles || []).map((b) => String(b.vault_id)));
+  const pageSize = 100;
+  let start_cursor = undefined;
+  const missing = new Set();
+
+  while (true) {
+    const res = await notion.databases.query({
+      database_id: NOTION_PROPS.DB.SALES,
+      page_size: pageSize,
+      start_cursor
+    });
+
+    for (const page of res.results || []) {
+      const vaultId = page.properties?.[NOTION_PROPS.SALES_VAULT_ID]?.rich_text?.[0]?.plain_text || null;
+      if (!vaultId) continue;
+      if (!bundleSet.has(String(vaultId))) missing.add(vaultId);
+    }
+
+    if (!res.has_more) break;
+    start_cursor = res.next_cursor;
+  }
+
+  if (missing.size > 0) {
+    throw new Error(`Missing bundles for vaults: ${[...missing].join(', ')}`);
+  }
+
+  console.log('✅ Preflight validation passed — all Notion Sales vault_ids exist in Supabase bundles.');
+}
+
+// ----------------- Core Sync Logic -----------------
 async function upsertSale({ offerName, vaultId, saleAmount, currency = 'USD', saleDate }) {
   const bundle = await findBundleByVaultId(vaultId);
   if (!bundle) throw new Error(`Bundle not found for vault_id=${vaultId}`);
@@ -165,7 +181,7 @@ async function upsertSale({ offerName, vaultId, saleAmount, currency = 'USD', sa
     }
   }
 
-  // 1) Find existing sale
+  // check existing sale
   const { data: salesRows, error: findSaleErr } = await supabase
     .from('sales')
     .select('*')
@@ -178,7 +194,6 @@ async function upsertSale({ offerName, vaultId, saleAmount, currency = 'USD', sa
   if (findSaleErr) throw findSaleErr;
   let sale = (salesRows && salesRows[0]) || null;
 
-  // 2) If not found, insert
   if (!sale) {
     const { data: newSale, error: saleErr } = await supabase
       .from('sales')
@@ -193,7 +208,7 @@ async function upsertSale({ offerName, vaultId, saleAmount, currency = 'USD', sa
         creator_id: bundle.creator_id,
         referrer_id: bundle.referrer_id,
         ip_holder: bundle.ip_holder,
-        override_pct: bundle.override_pct,
+        override_pct: bundle.override_pct
       })
       .select('*')
       .single();
@@ -201,10 +216,7 @@ async function upsertSale({ offerName, vaultId, saleAmount, currency = 'USD', sa
     sale = newSale;
   }
 
-  // === PAYOUTS ===
   const split = parseSplit(bundle.override_pct || sale.override_pct);
-
-  // Build split candidates only for real IDs
   const splitCandidates = [];
   if (bundle.creator_id) splitCandidates.push({ id: bundle.creator_id, role: 'creator' });
   if (bundle.ip_holder) splitCandidates.push({ id: bundle.ip_holder, role: 'ip_holder' });
@@ -212,28 +224,11 @@ async function upsertSale({ offerName, vaultId, saleAmount, currency = 'USD', sa
 
   const splitPayoutRows = calcPayouts(Number(sale.gross_amount), split, splitCandidates);
 
-  // ✅ Executor: always exists (fallback to 'N/A' if missing entity_to)
-  const executorPayout = [{
-    id: bundle.entity_to || 'N/A',
-    role: 'executor',
-    amount: Number(sale.gross_amount),
-  }];
+  const executorPayout = [{ id: bundle.entity_to || 'N/A', role: 'executor', amount: Number(sale.gross_amount) }];
+  const payoutRowsToPersist = [...executorPayout, ...splitPayoutRows.map((r) => ({ id: r.id, role: r.role, amount: r.amount }))];
 
-  // ✅ Base payouts list: executor + split recipients (creator/ip_holder + referrer if real)
-  const payoutRowsToPersist = [
-    ...executorPayout,
-    ...splitPayoutRows.map(r => ({
-      id: r.id,
-      role: r.role,
-      amount: r.amount,
-    })),
-  ];
-
-  // === UPSERT PAYOUTS INTO SUPABASE ===
   for (const p of payoutRowsToPersist) {
-    // Defensive: ensure a recipient_id is always present
     const recipientIdToWrite = p.id || 'N/A';
-
     const insertObj = {
       payout_id: crypto.randomUUID(),
       sale_id: sale.sale_id,
@@ -241,26 +236,16 @@ async function upsertSale({ offerName, vaultId, saleAmount, currency = 'USD', sa
       recipient_role: p.role,
       amount: Number(p.amount) || 0,
       currency: sale.sale_currency || 'USD',
-      status: 'queued',
+      status: 'queued'
     };
 
     try {
-      const { error: insertErr } = await supabase
-        .from('payouts')
-        .insert(insertObj)
-        .select()
-        .single();
-
+      const { error: insertErr } = await supabase.from('payouts').insert(insertObj).select().single();
       if (insertErr) {
-        // Handle unique constraint conflict by updating
         if (String(insertErr.code || '').includes('23505') || String(insertErr.message || '').toLowerCase().includes('duplicate')) {
           const { error: updErr } = await supabase
             .from('payouts')
-            .update({
-              amount: insertObj.amount,
-              currency: insertObj.currency,
-              status: insertObj.status,
-            })
+            .update({ amount: insertObj.amount, currency: insertObj.currency, status: insertObj.status })
             .match({ sale_id: insertObj.sale_id, recipient_role: insertObj.recipient_role });
           if (updErr) throw updErr;
         } else {
@@ -272,16 +257,10 @@ async function upsertSale({ offerName, vaultId, saleAmount, currency = 'USD', sa
       throw err;
     }
   }
-
-  // NOTE:
-  // - Referrer rows are only written if bundle.referrer_id exists.
-  // - Executor always exists (N/A fallback if missing).
-  // - We never persist payouts with recipient_id === null.
   return sale;
-} // <-- close upsertSale properly
+}
 
-
-// === Notion helpers ===
+// ----------------- Notion Sync + Dashboard -----------------
 async function upsertDashboardMetrics() {
   const { count: offersNum } = await supabase.from('offers').select('*', { count: 'exact', head: true });
   const { count: salesNum } = await supabase.from('sales').select('*', { count: 'exact', head: true });
@@ -294,7 +273,7 @@ async function upsertDashboardMetrics() {
     [NOTION_PROPS.DASH_OFFERS]: { number: offersNum ?? 0 },
     [NOTION_PROPS.DASH_SALES]: { number: salesNum ?? 0 },
     [NOTION_PROPS.DASH_ROYALTIES_QUEUED]: { number: Math.round(queuedSum * 100) / 100 },
-    [NOTION_PROPS.DASH_LAST_SYNCED]: { rich_text: [{ text: { content: lastSynced } }] },
+    [NOTION_PROPS.DASH_LAST_SYNCED]: { rich_text: [{ text: { content: lastSynced } }] }
   };
 
   if (!NOTION_PROPS.DB.DASHBOARD) {
@@ -303,7 +282,6 @@ async function upsertDashboardMetrics() {
   }
 
   const list = await notion.databases.query({ database_id: NOTION_PROPS.DB.DASHBOARD, page_size: 1 });
-
   if (!list.results.length) {
     await notion.pages.create({ parent: { database_id: NOTION_PROPS.DB.DASHBOARD }, properties: props });
     console.log('✅ Dashboard row created');
@@ -313,6 +291,7 @@ async function upsertDashboardMetrics() {
   }
 }
 
+// ----------------- Notion & Supabase Sync Functions -----------------
 async function syncOneSale(page) {
   const props = page.properties || {};
   const offerName = props[NOTION_PROPS.SALES_OFFER_NAME]?.title?.[0]?.plain_text || 'Unnamed Offer';
@@ -321,9 +300,7 @@ async function syncOneSale(page) {
   const currency = props[NOTION_PROPS.SALES_CURRENCY]?.rich_text?.[0]?.plain_text || 'USD';
   const saleDate = props[NOTION_PROPS.SALES_SALE_DATE]?.date?.start;
   if (!vaultId || !saleAmount) return;
-
-  const sale = await upsertSale({ offerName, vaultId, saleAmount, currency, saleDate });
-  return sale;
+  await upsertSale({ offerName, vaultId, saleAmount, currency, saleDate });
 }
 
 async function pullNewSalesFromNotion() {
@@ -332,9 +309,7 @@ async function pullNewSalesFromNotion() {
     return;
   }
   const resp = await notion.databases.query({ database_id: NOTION_PROPS.DB.SALES, page_size: 25 });
-  for (const page of resp.results) {
-    await syncOneSale(page);
-  }
+  for (const page of resp.results) await syncOneSale(page);
 }
 
 async function pushSupabaseBundlesToNotion() {
@@ -352,7 +327,7 @@ async function pushSupabaseBundlesToNotion() {
     const q = await notion.databases.query({
       database_id: NOTION_PROPS.DB.BUNDLES,
       filter: { property: NOTION_PROPS.BUNDLE_VAULT_ID, rich_text: { equals: String(b.vault_id) } },
-      page_size: 1,
+      page_size: 1
     });
     const props = {
       [NOTION_PROPS.BUNDLE_NAME]: title(String(b.vault_id || b.bundle_id)),
@@ -364,13 +339,12 @@ async function pushSupabaseBundlesToNotion() {
       [NOTION_PROPS.BUNDLE_VAULT_ID]: text(b.vault_id),
       [NOTION_PROPS.CREATOR_ID]: text(b.creator_id),
       [NOTION_PROPS.REFERRER_ID]: text(b.referrer_id),
-      [NOTION_PROPS.REUSE_EVENT]: { checkbox: !!b.reuse_event },
+      [NOTION_PROPS.REUSE_EVENT]: { checkbox: !!b.reuse_event }
     };
-    if (!q.results.length) {
+    if (!q.results.length)
       await notion.pages.create({ parent: { database_id: NOTION_PROPS.DB.BUNDLES }, properties: props });
-    } else {
+    else
       await notion.pages.update({ page_id: q.results[0].id, properties: props });
-    }
   }
 }
 
@@ -395,21 +369,19 @@ async function pushSupabaseSalesToNotion() {
     const currency = s.sale_currency;
     const saleDate = s.sale_date;
 
-    // Build Calculated Split from payouts table for this sale
     const { data: payoutsForSale } = await supabase.from('payouts').select('*').eq('sale_id', saleId);
     const rolesOrder = ['executor', 'creator', 'ip_holder', 'referrer'];
     const parts = [];
     for (const role of rolesOrder) {
-      const p = (payoutsForSale || []).find(x => x.recipient_role === role && x.recipient_id);
+      const p = (payoutsForSale || []).find((x) => x.recipient_role === role && x.recipient_id);
       if (p) parts.push(`${role}: ${Number(p.amount).toFixed(2)}`);
     }
     const splitStr = `[${offerName}] ` + (parts.length ? parts.join(' | ') : 'no payouts');
 
-    // Find existing Notion Sales page by Linked Sale ID
     const q = await notion.databases.query({
       database_id: NOTION_PROPS.DB.SALES,
       filter: { property: NOTION_PROPS.SALES_LINKED_ID, rich_text: { equals: String(saleId) } },
-      page_size: 1,
+      page_size: 1
     });
 
     const props = {
@@ -419,58 +391,49 @@ async function pushSupabaseSalesToNotion() {
       [NOTION_PROPS.SALES_CURRENCY]: text(currency || ''),
       [NOTION_PROPS.SALES_SALE_DATE]: saleDate ? { date: { start: saleDate } } : undefined,
       [NOTION_PROPS.SALES_CALC_SPLIT]: text(splitStr),
-      [NOTION_PROPS.SALES_LINKED_ID]: text(String(saleId)),
+      [NOTION_PROPS.SALES_LINKED_ID]: text(String(saleId))
     };
 
-    if (!q.results.length) {
+    if (!q.results.length)
       await notion.pages.create({ parent: { database_id: NOTION_PROPS.DB.SALES }, properties: props });
-    } else {
+    else
       await notion.pages.update({ page_id: q.results[0].id, properties: props });
-    }
 
-        // Ensure Payouts exist in Notion for this sale (create or update by Sale ID + Role)
     if (NOTION_PROPS.DB.PAYOUTS) {
-      for (const p of (payoutsForSale || [])) {
-        // skip payouts where recipient_id is 'N/A' (no Notion page for missing referrer)
+      for (const p of payoutsForSale || []) {
         if (!p.recipient_id || p.recipient_id === 'N/A') continue;
-
-        // find existing Notion page by Sale ID (title) + Role
         const existingPage = await findNotionPayoutPageBySaleAndRole(notion, saleId, p.recipient_role);
 
-        // For Sale ID in Payouts DB we MUST use title type (adjust if your DB differs)
         const payoutProps = {
-          [NOTION_PROPS.PAYOUT_SALE_ID]: { title: [{ text: { content: String(p.sale_id) } }] }, // title
+          [NOTION_PROPS.PAYOUT_SALE_ID]: { title: [{ text: { content: String(p.sale_id) } }] },
           [NOTION_PROPS.PAYOUT_RECIPIENT]: text(String(p.recipient_id)),
           [NOTION_PROPS.PAYOUT_ROLE]: { select: { name: p.recipient_role } },
           [NOTION_PROPS.PAYOUT_AMOUNT]: { number: Number(p.amount) || 0 },
           [NOTION_PROPS.PAYOUT_CURRENCY]: text(p.currency || ''),
           [NOTION_PROPS.PAYOUT_STATUS]: { select: { name: p.status || 'queued' } },
-          [NOTION_PROPS.PAYOUT_PAYOUT_ID]: text(String(p.payout_id || '')),
+          [NOTION_PROPS.PAYOUT_PAYOUT_ID]: text(String(p.payout_id || ''))
         };
 
-        if (existingPage) {
+        if (existingPage)
           await notion.pages.update({ page_id: existingPage.id, properties: payoutProps });
-        } else {
-          await notion.pages.create({
-            parent: { database_id: NOTION_PROPS.DB.PAYOUTS },
-            properties: payoutProps
-          });
-        }
+        else
+          await notion.pages.create({ parent: { database_id: NOTION_PROPS.DB.PAYOUTS }, properties: payoutProps });
       }
     }
   }
 }
 
-// === Sync Orchestration ===
+// ----------------- Orchestration -----------------
 async function main() {
   console.log('Starting sync — this will pull Sales from Notion, push Bundles, push Sales, and update Dashboard.');
+
+  await preflightValidateBundles(); // ✅ Run preflight validation first
 
   await pullNewSalesFromNotion();
   await pushSupabaseBundlesToNotion();
   await pushSupabaseSalesToNotion();
   await upsertDashboardMetrics();
 
-  // === Summary Report ===
   const { count: offersNum } = await supabase.from('offers').select('*', { count: 'exact', head: true });
   const { count: salesNum } = await supabase.from('sales').select('*', { count: 'exact', head: true });
   const { count: payoutsNum } = await supabase.from('payouts').select('*', { count: 'exact', head: true });
