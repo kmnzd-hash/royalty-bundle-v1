@@ -278,6 +278,8 @@ async function upsertSale({ offerName, vaultId, saleAmount, currency = 'USD', sa
   // - Executor always exists (N/A fallback if missing).
   // - We never persist payouts with recipient_id === null.
   return sale;
+} // <-- close upsertSale properly
+
 
 // === Notion helpers ===
 async function upsertDashboardMetrics() {
