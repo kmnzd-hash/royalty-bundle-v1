@@ -1,51 +1,21 @@
 import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
 import { Client as NotionClient } from '@notionhq/client';
-import crypto from 'node:crypto'; // for crypto.randomUUID()
+import crypto from 'node:crypto';
 
-// ----------------- Notion property mapping -----------------
+// ----------------- CONFIG -----------------
 const NOTION_PROPS = {
   DB: {
     BUNDLES: process.env.NOTION_DB_BUNDLES || null,
-    SALES: process.env.NOTION_DB_SALES || null,
     PAYOUTS: process.env.NOTION_DB_PAYOUTS || null,
     DASHBOARD: process.env.NOTION_DB_DASHBOARD || null
   },
   DASH_OFFERS: '#Offers',
   DASH_SALES: '#Sales',
   DASH_ROYALTIES_QUEUED: 'Royalties Queued',
-  DASH_LAST_SYNCED: 'Last Synced',
-
-  SALES_OFFER_NAME: 'Offer Name',
-  SALES_VAULT_ID: 'Bundle Vault ID',
-  SALES_SALE_AMOUNT: 'Sale Amount',
-  SALES_CALC_SPLIT: 'Calculated Split',
-  SALES_LINKED_ID: 'Linked Sale ID',
-  SALES_CURRENCY: 'Currency',
-  SALES_SALE_DATE: 'Sale Date',
-
-  BUNDLE_NAME: 'Name',
-  BUNDLE_VAULT_ID: 'Vault ID',
-  BUNDLE_TYPE: 'Bundle Type',
-  ENTITY_FROM: 'Entity From',
-  ENTITY_TO: 'Entity To',
-  IP_HOLDER: 'IP Holder',
-  OVERRIDE_PCT: 'Override Pct',
-  CREATOR_ID: 'Creator ID',
-  REFERRER_ID: 'Referrer ID',
-  REUSE_EVENT: 'Reuse Event',
-
-  PAYOUT_SALE_ID: 'Sale ID',
-  PAYOUT_RECIPIENT: 'Recipient',
-  PAYOUT_ROLE: 'Role',
-  PAYOUT_AMOUNT: 'Amount',
-  PAYOUT_CURRENCY: 'Currency',
-  PAYOUT_STATUS: 'Status',
-  PAYOUT_PAYOUT_ID: 'Payout ID'
+  DASH_LAST_SYNCED: 'Last Synced'
 };
-// ------------------------------------------------------------
 
-// ENV setup
 const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, NOTION_TOKEN } = process.env;
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error('Missing Supabase env vars');
 if (!NOTION_TOKEN) throw new Error('Missing Notion token');
@@ -53,7 +23,7 @@ if (!NOTION_TOKEN) throw new Error('Missing Notion token');
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 const notion = new NotionClient({ auth: NOTION_TOKEN });
 
-// ----------------- Helper Functions -----------------
+// ----------------- HELPERS -----------------
 const text = (s) => ({ rich_text: [{ type: 'text', text: { content: String(s ?? '') } }] });
 const title = (s) => ({ title: [{ type: 'text', text: { content: String(s ?? '') } }] });
 
@@ -77,70 +47,38 @@ function calcPayouts(gross, split, recipients) {
   return rows;
 }
 
-async function findBundleByVaultId(vaultId, retries = 3) {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const { data, error } = await supabase.from('bundles').select('*').eq('vault_id', vaultId).limit(1);
-      if (error) throw error;
-      return data?.[0] || null;
-    } catch (err) {
-      console.error(`❌ findBundleByVaultId failed (attempt ${attempt}):`, err.message || err);
-      if (attempt === retries) throw err;
-      await new Promise((res) => setTimeout(res, 1000 * attempt));
-    }
-  }
-  return null;
+async function findBundleByVaultId(vaultId) {
+  const { data, error } = await supabase.from('bundles').select('*').eq('vault_id', vaultId).limit(1);
+  if (error) throw error;
+  return data?.[0] || null;
 }
 
-async function findNotionPayoutPageBySaleAndRole(notionClient, saleId, role) {
-  if (!NOTION_PROPS.DB.PAYOUTS) return null;
-  try {
-    const res = await notionClient.databases.query({
-      database_id: NOTION_PROPS.DB.PAYOUTS,
-      filter: {
-        and: [
-          { property: NOTION_PROPS.PAYOUT_SALE_ID, title: { equals: String(saleId) } },
-          { property: NOTION_PROPS.PAYOUT_ROLE, select: { equals: role } }
-        ]
-      },
-      page_size: 1
-    });
-    return res.results?.[0] || null;
-  } catch (err) {
-    console.error('findNotionPayoutPageBySaleAndRole error', err);
-    return null;
-  }
-}
-
-// ----------------- Pre-flight Validation -----------------
+// ----------------- PRE-FLIGHT VALIDATION -----------------
 async function preflightValidateBundles() {
-  if (!NOTION_PROPS.DB.SALES) {
-    console.warn('No Notion Sales DB configured; skipping pre-flight bundle validation.');
+  if (!NOTION_PROPS.DB.BUNDLES) {
+    console.warn('No Notion Bundles DB configured; skipping preflight.');
     return;
   }
 
-  // Fetch all bundle vault_ids
   const { data: allBundles, error: bundlesErr } = await supabase.from('bundles').select('vault_id');
-  if (bundlesErr) throw new Error(`Failed to fetch bundles: ${bundlesErr.message || bundlesErr}`);
+  if (bundlesErr) throw new Error(`Failed to fetch bundles: ${bundlesErr.message}`);
 
   const bundleSet = new Set((allBundles || []).map((b) => String(b.vault_id)));
+
   const pageSize = 100;
   let start_cursor = undefined;
   const missing = new Set();
 
   while (true) {
     const res = await notion.databases.query({
-      database_id: NOTION_PROPS.DB.SALES,
+      database_id: NOTION_PROPS.DB.BUNDLES,
       page_size: pageSize,
       start_cursor
     });
-
     for (const page of res.results || []) {
-      const vaultId = page.properties?.[NOTION_PROPS.SALES_VAULT_ID]?.rich_text?.[0]?.plain_text || null;
-      if (!vaultId) continue;
-      if (!bundleSet.has(String(vaultId))) missing.add(vaultId);
+      const vaultId = page.properties?.['Vault ID']?.rich_text?.[0]?.plain_text || null;
+      if (vaultId && !bundleSet.has(vaultId)) missing.add(vaultId);
     }
-
     if (!res.has_more) break;
     start_cursor = res.next_cursor;
   }
@@ -152,132 +90,95 @@ async function preflightValidateBundles() {
   console.log('✅ Preflight validation passed — all Notion Sales vault_ids exist in Supabase bundles.');
 }
 
-// ----------------- Core Sync Logic -----------------
-async function upsertSale({ offerName, vaultId, saleAmount, currency = 'USD', saleDate }) {
+// ----------------- UPSERT OFFER & PAYOUTS (NO SALES) -----------------
+async function upsertSale({ offerName, vaultId, saleAmount, currency = 'USD', notionPageId = null }) {
+  // 1️⃣ find bundle
   const bundle = await findBundleByVaultId(vaultId);
   if (!bundle) throw new Error(`Bundle not found for vault_id=${vaultId}`);
 
-  // ensure offer exists or create one
+  // 2️⃣ ensure offer exists or create
   let offerId;
-  {
-    const { data: offer, error: offerErr } = await supabase
+  const { data: offer, error: offerErr } = await supabase
+    .from('offers')
+    .select('id')
+    .eq('name', offerName)
+    .maybeSingle();
+  if (offerErr) throw offerErr;
+
+  // Map bundle_type → allowed offer_type values
+  let derivedOfferType = 'core';
+  const bt = (bundle.bundle_type || '').toLowerCase();
+  if (bt.includes('lead')) derivedOfferType = 'lead_gen';
+  else if (bt.includes('continuity')) derivedOfferType = 'continuity';
+  else if (bt.includes('premium')) derivedOfferType = 'premium';
+
+  if (offer?.id) {
+    offerId = offer.id;
+  } else {
+    const { data: ins, error: insErr } = await supabase
       .from('offers')
-      .select('offer_id')
-      .eq('bundle_id', bundle.bundle_id)
-      .eq('offer_name', offerName)
-      .maybeSingle();
-    if (offerErr) throw offerErr;
-
-    if (offer?.offer_id) {
-      offerId = offer.offer_id;
-    } else {
-      const { data: ins, error: insErr } = await supabase
-        .from('offers')
-        .insert({ bundle_id: bundle.bundle_id, offer_name: offerName, price: saleAmount, currency })
-        .select('offer_id')
-        .single();
-      if (insErr) throw insErr;
-      offerId = ins.offer_id;
-    }
-  }
-
-  // check existing sale
-  const { data: salesRows, error: findSaleErr } = await supabase
-    .from('sales')
-    .select('*')
-    .eq('vault_id', vaultId)
-    .eq('offer_id', offerId)
-    .eq('gross_amount', saleAmount)
-    .order('sale_date', { ascending: false })
-    .limit(1);
-
-  if (findSaleErr) throw findSaleErr;
-  let sale = (salesRows && salesRows[0]) || null;
-
-  if (!sale) {
-    const { data: newSale, error: saleErr } = await supabase
-      .from('sales')
       .insert({
-        offer_id: offerId,
-        offer_name: offerName,
-        gross_amount: saleAmount,
-        sale_currency: currency,
-        sale_date: saleDate ?? new Date().toISOString(),
-        vault_id: vaultId,
-        bundle_id: bundle.bundle_id,
-        creator_id: bundle.creator_id,
-        referrer_id: bundle.referrer_id,
-        ip_holder: bundle.ip_holder,
-        override_pct: bundle.override_pct
+        name: offerName,
+        offer_type: derivedOfferType,
+        description: `Auto-created offer for bundle ${bundle.vault_id}`,
+        default_price: saleAmount
       })
-      .select('*')
+      .select('id')
       .single();
-    if (saleErr) throw saleErr;
-    sale = newSale;
+    if (insErr) throw insErr;
+    offerId = ins.id;
   }
 
-  const split = parseSplit(bundle.override_pct || sale.override_pct);
+  // 3️⃣ determine recipients
+  const split = parseSplit(bundle.override_pct || null);
   const splitCandidates = [];
-  if (bundle.creator_id) splitCandidates.push({ id: bundle.creator_id, role: 'creator' });
+  if (bundle.entity_from) splitCandidates.push({ id: bundle.entity_from, role: 'creator' });
   if (bundle.ip_holder) splitCandidates.push({ id: bundle.ip_holder, role: 'ip_holder' });
-  if (bundle.referrer_id) splitCandidates.push({ id: bundle.referrer_id, role: 'referrer' });
+  if (bundle.entity_to) splitCandidates.push({ id: bundle.entity_to, role: 'executor' });
 
-  const splitPayoutRows = calcPayouts(Number(sale.gross_amount), split, splitCandidates);
+  const splitPayoutRows = calcPayouts(Number(saleAmount), split, splitCandidates);
 
-  const executorPayout = [{ id: bundle.entity_to || 'N/A', role: 'executor', amount: Number(sale.gross_amount) }];
-  const payoutRowsToPersist = [...executorPayout, ...splitPayoutRows.map((r) => ({ id: r.id, role: r.role, amount: r.amount }))];
-
-  for (const p of payoutRowsToPersist) {
-    const recipientIdToWrite = p.id || 'N/A';
+  // 4️⃣ insert payouts directly
+  for (const p of splitPayoutRows) {
     const insertObj = {
-      payout_id: crypto.randomUUID(),
-      sale_id: sale.sale_id,
-      recipient_id: recipientIdToWrite,
+      payout_uuid: crypto.randomUUID(),
+      transaction_id: null,
+      sale_id: null,
+      recipient_entity: Number(p.id),
       recipient_role: p.role,
       amount: Number(p.amount) || 0,
-      currency: sale.sale_currency || 'USD',
-      status: 'queued'
+      currency,
+      status: 'queued',
+      notion_page_url: notionPageId ? String(notionPageId) : null,
+      created_at: new Date().toISOString(),
+      sent_at: null
     };
 
-    try {
-      const { error: insertErr } = await supabase.from('payouts').insert(insertObj).select().single();
-      if (insertErr) {
-        if (String(insertErr.code || '').includes('23505') || String(insertErr.message || '').toLowerCase().includes('duplicate')) {
-          const { error: updErr } = await supabase
-            .from('payouts')
-            .update({ amount: insertObj.amount, currency: insertObj.currency, status: insertObj.status })
-            .match({ sale_id: insertObj.sale_id, recipient_role: insertObj.recipient_role });
-          if (updErr) throw updErr;
-        } else {
-          throw insertErr;
-        }
-      }
-    } catch (err) {
-      console.error('payout upsert failed for', insertObj, err?.message || err);
-      throw err;
-    }
+    const { error: insertErr } = await supabase.from('payouts_v2').insert(insertObj).select();
+    if (insertErr) throw insertErr;
+    console.log(`✅ Payout created: ${p.role} (${p.amount}) for vault ${vaultId}`);
   }
-  return sale;
+
+  return { offer_id: offerId, vault_id: vaultId, total_amount: saleAmount, currency };
 }
 
-// ----------------- Notion Sync + Dashboard -----------------
+// ----------------- DASHBOARD METRICS -----------------
 async function upsertDashboardMetrics() {
   const { count: offersNum } = await supabase.from('offers').select('*', { count: 'exact', head: true });
-  const { count: salesNum } = await supabase.from('sales').select('*', { count: 'exact', head: true });
-  const { data: queuedSales } = await supabase.from('sales').select('gross_amount, sale_id');
-
-  const queuedSum = (queuedSales || []).reduce((a, b) => a + Number(b.gross_amount || 0), 0);
+  const { count: payoutsNum } = await supabase.from('payouts_v2').select('*', { count: 'exact', head: true });
+  const { data: queuedPayouts } = await supabase.from('payouts_v2').select('amount');
+  const totalQueued = (queuedPayouts || []).reduce((a, b) => a + Number(b.amount || 0), 0);
   const lastSynced = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
   const props = {
     [NOTION_PROPS.DASH_OFFERS]: { number: offersNum ?? 0 },
-    [NOTION_PROPS.DASH_SALES]: { number: salesNum ?? 0 },
-    [NOTION_PROPS.DASH_ROYALTIES_QUEUED]: { number: Math.round(queuedSum * 100) / 100 },
+    [NOTION_PROPS.DASH_SALES]: { number: 0 },
+    [NOTION_PROPS.DASH_ROYALTIES_QUEUED]: { number: Math.round(totalQueued * 100) / 100 },
     [NOTION_PROPS.DASH_LAST_SYNCED]: { rich_text: [{ text: { content: lastSynced } }] }
   };
 
   if (!NOTION_PROPS.DB.DASHBOARD) {
-    console.warn('No NOTION dashboard DB configured in env; skipping dashboard update');
+    console.warn('No Notion dashboard configured; skipping update');
     return;
   }
 
@@ -291,157 +192,18 @@ async function upsertDashboardMetrics() {
   }
 }
 
-// ----------------- Notion & Supabase Sync Functions -----------------
-async function syncOneSale(page) {
-  const props = page.properties || {};
-  const offerName = props[NOTION_PROPS.SALES_OFFER_NAME]?.title?.[0]?.plain_text || 'Unnamed Offer';
-  const vaultId = props[NOTION_PROPS.SALES_VAULT_ID]?.rich_text?.[0]?.plain_text;
-  const saleAmount = Number(props[NOTION_PROPS.SALES_SALE_AMOUNT]?.number || 0);
-  const currency = props[NOTION_PROPS.SALES_CURRENCY]?.rich_text?.[0]?.plain_text || 'USD';
-  const saleDate = props[NOTION_PROPS.SALES_SALE_DATE]?.date?.start;
-  if (!vaultId || !saleAmount) return;
-  await upsertSale({ offerName, vaultId, saleAmount, currency, saleDate });
-}
-
-async function pullNewSalesFromNotion() {
-  if (!NOTION_PROPS.DB.SALES) {
-    console.warn('Notion Sales DB not configured, skipping pullNewSalesFromNotion');
-    return;
-  }
-  const resp = await notion.databases.query({ database_id: NOTION_PROPS.DB.SALES, page_size: 25 });
-  for (const page of resp.results) await syncOneSale(page);
-}
-
-async function pushSupabaseBundlesToNotion() {
-  if (!NOTION_PROPS.DB.BUNDLES) {
-    console.warn('Notion Bundles DB not configured, skipping pushSupabaseBundlesToNotion');
-    return;
-  }
-
-  const { data: bundles, error } = await supabase
-    .from('bundles')
-    .select('bundle_id,bundle_type,entity_from,entity_to,ip_holder,override_pct,vault_id,creator_id,referrer_id,reuse_event,created_at');
-  if (error) throw error;
-
-  for (const b of bundles || []) {
-    const q = await notion.databases.query({
-      database_id: NOTION_PROPS.DB.BUNDLES,
-      filter: { property: NOTION_PROPS.BUNDLE_VAULT_ID, rich_text: { equals: String(b.vault_id) } },
-      page_size: 1
-    });
-    const props = {
-      [NOTION_PROPS.BUNDLE_NAME]: title(String(b.vault_id || b.bundle_id)),
-      [NOTION_PROPS.BUNDLE_TYPE]: { select: { name: b.bundle_type } },
-      [NOTION_PROPS.ENTITY_FROM]: text(b.entity_from),
-      [NOTION_PROPS.ENTITY_TO]: text(b.entity_to),
-      [NOTION_PROPS.IP_HOLDER]: text(b.ip_holder),
-      [NOTION_PROPS.OVERRIDE_PCT]: text(b.override_pct),
-      [NOTION_PROPS.BUNDLE_VAULT_ID]: text(b.vault_id),
-      [NOTION_PROPS.CREATOR_ID]: text(b.creator_id),
-      [NOTION_PROPS.REFERRER_ID]: text(b.referrer_id),
-      [NOTION_PROPS.REUSE_EVENT]: { checkbox: !!b.reuse_event }
-    };
-    if (!q.results.length)
-      await notion.pages.create({ parent: { database_id: NOTION_PROPS.DB.BUNDLES }, properties: props });
-    else
-      await notion.pages.update({ page_id: q.results[0].id, properties: props });
-  }
-}
-
-async function pushSupabaseSalesToNotion() {
-  if (!NOTION_PROPS.DB.SALES) {
-    console.warn('Notion Sales DB not configured, skipping pushSupabaseSalesToNotion');
-    return;
-  }
-
-  const { data: sales, error } = await supabase
-    .from('sales')
-    .select('*')
-    .order('created_at', { ascending: true })
-    .limit(500);
-  if (error) throw error;
-
-  for (const s of sales || []) {
-    const saleId = s.sale_id;
-    const offerName = s.offer_name || '';
-    const vaultId = s.vault_id || '';
-    const saleAmount = s.gross_amount;
-    const currency = s.sale_currency;
-    const saleDate = s.sale_date;
-
-    const { data: payoutsForSale } = await supabase.from('payouts').select('*').eq('sale_id', saleId);
-    const rolesOrder = ['executor', 'creator', 'ip_holder', 'referrer'];
-    const parts = [];
-    for (const role of rolesOrder) {
-      const p = (payoutsForSale || []).find((x) => x.recipient_role === role && x.recipient_id);
-      if (p) parts.push(`${role}: ${Number(p.amount).toFixed(2)}`);
-    }
-    const splitStr = `[${offerName}] ` + (parts.length ? parts.join(' | ') : 'no payouts');
-
-    const q = await notion.databases.query({
-      database_id: NOTION_PROPS.DB.SALES,
-      filter: { property: NOTION_PROPS.SALES_LINKED_ID, rich_text: { equals: String(saleId) } },
-      page_size: 1
-    });
-
-    const props = {
-      [NOTION_PROPS.SALES_OFFER_NAME]: title(offerName),
-      [NOTION_PROPS.SALES_VAULT_ID]: text(vaultId),
-      [NOTION_PROPS.SALES_SALE_AMOUNT]: { number: Number(saleAmount) || 0 },
-      [NOTION_PROPS.SALES_CURRENCY]: text(currency || ''),
-      [NOTION_PROPS.SALES_SALE_DATE]: saleDate ? { date: { start: saleDate } } : undefined,
-      [NOTION_PROPS.SALES_CALC_SPLIT]: text(splitStr),
-      [NOTION_PROPS.SALES_LINKED_ID]: text(String(saleId))
-    };
-
-    if (!q.results.length)
-      await notion.pages.create({ parent: { database_id: NOTION_PROPS.DB.SALES }, properties: props });
-    else
-      await notion.pages.update({ page_id: q.results[0].id, properties: props });
-
-    if (NOTION_PROPS.DB.PAYOUTS) {
-      for (const p of payoutsForSale || []) {
-        if (!p.recipient_id || p.recipient_id === 'N/A') continue;
-        const existingPage = await findNotionPayoutPageBySaleAndRole(notion, saleId, p.recipient_role);
-
-        const payoutProps = {
-          [NOTION_PROPS.PAYOUT_SALE_ID]: { title: [{ text: { content: String(p.sale_id) } }] },
-          [NOTION_PROPS.PAYOUT_RECIPIENT]: text(String(p.recipient_id)),
-          [NOTION_PROPS.PAYOUT_ROLE]: { select: { name: p.recipient_role } },
-          [NOTION_PROPS.PAYOUT_AMOUNT]: { number: Number(p.amount) || 0 },
-          [NOTION_PROPS.PAYOUT_CURRENCY]: text(p.currency || ''),
-          [NOTION_PROPS.PAYOUT_STATUS]: { select: { name: p.status || 'queued' } },
-          [NOTION_PROPS.PAYOUT_PAYOUT_ID]: text(String(p.payout_id || ''))
-        };
-
-        if (existingPage)
-          await notion.pages.update({ page_id: existingPage.id, properties: payoutProps });
-        else
-          await notion.pages.create({ parent: { database_id: NOTION_PROPS.DB.PAYOUTS }, properties: payoutProps });
-      }
-    }
-  }
-}
-
-// ----------------- Orchestration -----------------
+// ----------------- MAIN -----------------
 async function main() {
   console.log('Starting sync — this will pull Sales from Notion, push Bundles, push Sales, and update Dashboard.');
+  await preflightValidateBundles();
 
-  await preflightValidateBundles(); // ✅ Run preflight validation first
+  // EXAMPLE manual calls (you can replace with your Notion iteration)
+  await upsertSale({ offerName: 'Growth Pack', vaultId: 'vault-01', saleAmount: 10000 });
+  await upsertSale({ offerName: 'Nestwell Retreat', vaultId: 'vault-02', saleAmount: 10000 });
 
-  await pullNewSalesFromNotion();
-  await pushSupabaseBundlesToNotion();
-  await pushSupabaseSalesToNotion();
   await upsertDashboardMetrics();
 
-  const { count: offersNum } = await supabase.from('offers').select('*', { count: 'exact', head: true });
-  const { count: salesNum } = await supabase.from('sales').select('*', { count: 'exact', head: true });
-  const { count: payoutsNum } = await supabase.from('payouts').select('*', { count: 'exact', head: true });
-
   console.log('\n📊 === SUMMARY REPORT ===');
-  console.log(`- Supabase offers: ${offersNum}`);
-  console.log(`- Supabase sales: ${salesNum}`);
-  console.log(`- Supabase payouts: ${payoutsNum}`);
   console.log('✅ Sync complete — check Notion dashboards and payouts for correctness.');
 }
 
