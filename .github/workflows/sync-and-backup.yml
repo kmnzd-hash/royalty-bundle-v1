@@ -1,41 +1,55 @@
-name: sync-and-backup
+name: Sync and Backup
 
 on:
+  workflow_dispatch:  # ✅ allows manual runs via the GitHub Actions UI
   push:
     branches: [ main ]
   schedule:
-    - cron: '0 2 * * *' # daily 02:00 UTC
+    - cron: '0 2 * * *'  # runs daily at 02:00 UTC (10:00 AM PH time)
+
+permissions:
+  contents: write        # required for pushing commits
+  actions: read
+  id-token: write
 
 jobs:
-  sync:
+  sync-and-backup:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js
+      - name: 🧭 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install deps
-        run: npm ci
-      - name: Run sync (Notion <> Supabase)
+
+      - name: 📦 Install dependencies
+        run: npm ci || npm i
+
+      - name: 🔄 Run Sync (Notion ↔ Supabase)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DB_BUNDLES: ${{ secrets.NOTION_DB_BUNDLES }}
-          NOTION_DB_SALES: ${{ secrets.NOTION_DB_SALES }}
           NOTION_DB_PAYOUTS: ${{ secrets.NOTION_DB_PAYOUTS }}
           NOTION_DB_DASHBOARD: ${{ secrets.NOTION_DB_DASHBOARD }}
         run: |
+          echo "Starting Notion ↔ Supabase sync..."
           node scripts/sync.mjs
-      - name: Backup CSVs
+
+      - name: 💾 Run Backup (Export CSVs)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
+          echo "Running nightly Supabase backup..."
           node scripts/backup.mjs
-      - name: Upload backup artifact
+
+      - name: 📤 Upload backup artifact
         uses: actions/upload-artifact@v4
         with:
-          name: daily-backup
+          name: nightly-backup
           path: exports/
