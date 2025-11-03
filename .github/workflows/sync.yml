@@ -2,25 +2,66 @@ name: Sync Royalties
 
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (true/false)"
+        required: false
+        default: "false"
+
   schedule:
-    - cron: "*/15 * * * *" # every 15 minutes
+    - cron: "0 */6 * * *" # every 6 hours
 
 jobs:
   sync:
+    name: DAO / Supabase ↔ Notion Sync
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: 🧩 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci || npm i
-      - run: node scripts/sync.mjs
+
+      - name: 📦 Install Dependencies
+        run: npm ci || npm i
+
+      - name: 🪄 Pre-sync Slack Alert
+        if: env.SLACK_WEBHOOK != ''
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data "{\"text\":\"🔄 DAO Sync started on *${{ github.repository }}* at $(date +'%Y-%m-%d %H:%M:%S') (ref: ${{ github.ref_name }})\"}" \
+          ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: 🚀 Run DAO Sync
+        id: run_dao_sync
+        run: |
+          export DRY_RUN=${{ github.event.inputs.dry_run || 'false' }}
+          export NODE_TLS_REJECT_UNAUTHORIZED=0
+          node -r dotenv/config scripts/dao_sync.mjs
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          NOTION_DB_BUNDLES: ${{ secrets.NOTION_DB_BUNDLES }}
-          NOTION_DB_SALES: ${{ secrets.NOTION_DB_SALES }}
-          NOTION_DB_PAYOUTS: ${{ secrets.NOTION_DB_PAYOUTS }}
-          NOTION_DB_DASHBOARD: ${{ secrets.NOTION_DB_DASHBOARD }}
+          NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
+          NOTION_EVIDENCE_DB_ID: ${{ secrets.NOTION_EVIDENCE_DB_ID }}
+          NOTION_SALES_DB_ID: ${{ secrets.NOTION_SALES_DB_ID }}
+          NOTION_TREASURY_DB_ID: ${{ secrets.NOTION_TREASURY_DB_ID }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_USER_ID: ${{ secrets.SLACK_USER_ID }}
 
+      - name: ✅ Slack Success Notification
+        if: success() && env.SLACK_WEBHOOK != ''
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data "{\"text\":\"✅ DAO Sync completed successfully at $(date +'%Y-%m-%d %H:%M:%S')\"}" \
+          ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: ❌ Slack Failure Notification
+        if: failure() && env.SLACK_WEBHOOK != ''
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data "{\"text\":\"🚨 DAO Sync failed at $(date +'%Y-%m-%d %H:%M:%S') — check logs in GitHub Actions.\"}" \
+          ${{ secrets.SLACK_WEBHOOK }}
