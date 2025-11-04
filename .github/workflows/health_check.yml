@@ -1,0 +1,23 @@
+name: System Health Check
+
+on:
+  schedule:
+    - cron: "30 0 * * *"  # midnight daily
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Verify Integrations
+        run: |
+          node scripts/health_check.mjs
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_SALES_DB_ID: ${{ secrets.NOTION_SALES_DB_ID }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
