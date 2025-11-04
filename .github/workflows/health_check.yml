@@ -1,8 +1,8 @@
-name: System Health Check
+name: Weekly Sync Health Check
 
 on:
   schedule:
-    - cron: "30 0 * * *"  # midnight daily
+    - cron: "0 3 * * 0" # Sunday 03:00 UTC (adjust to PH timezone if needed)
   workflow_dispatch:
 
 jobs:
@@ -13,11 +13,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Verify Integrations
-        run: |
-          node scripts/health_check.mjs
+      - run: npm ci || npm i
+      - name: Run health check
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          NOTION_SALES_DB_ID: ${{ secrets.NOTION_SALES_DB_ID }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_USER_ID: ${{ secrets.SLACK_USER_ID }}
+        run: |
+          export NODE_TLS_REJECT_UNAUTHORIZED=0
+          node -r dotenv/config scripts/sync_health_check.mjs
