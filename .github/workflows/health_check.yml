@@ -10,16 +10,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci || npm i
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
       - name: Run health check
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_USER_ID: ${{ secrets.SLACK_USER_ID }}
+          NOTION_SALES_DB_ID: ${{ secrets.NOTION_SALES_DB_ID }}
+          NOTION_BUNDLES_DB_ID: ${{ secrets.NOTION_BUNDLES_DB_ID }}
+          NOTION_TREASURY_DB_ID: ${{ secrets.NOTION_TREASURY_DB_ID }}
+          NOTION_EVIDENCE_DB_ID: ${{ secrets.NOTION_EVIDENCE_DB_ID }}
         run: |
           export NODE_TLS_REJECT_UNAUTHORIZED=0
           node -r dotenv/config scripts/sync_health_check.mjs
