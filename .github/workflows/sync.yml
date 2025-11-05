@@ -3,24 +3,61 @@ name: Sync Royalties
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/15 * * * *" # every 15 minutes
+    - cron: "0 */6 * * *" # every 6 hours
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+    env:
+      # Core credentials
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+
+      # Optional legacy Supabase variables (for backward compatibility)
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      # Slack + runtime controls
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SLACK_USER_ID: ${{ secrets.SLACK_USER_ID }}
+      DRY_RUN: ${{ secrets.DRY_RUN }}
+
+      # Notion database IDs (active Phase 3 configuration)
+      NOTION_EVIDENCE_DB_ID: ${{ secrets.NOTION_EVIDENCE_DB_ID }}
+      NOTION_SALES_DB_ID: ${{ secrets.NOTION_SALES_DB_ID }}
+      NOTION_BUNDLE_DB_ID: ${{ secrets.NOTION_BUNDLE_DB_ID }}
+      NOTION_TREASURY_DB_ID: ${{ secrets.NOTION_TREASURY_DB_ID }}
+      NOTION_ENTITY_DB_ID: ${{ secrets.NOTION_ENTITY_DB_ID }}
+      NOTION_SYSTEM_DB_ID: ${{ secrets.NOTION_SYSTEM_DB_ID }}
+
+      # Legacy aliases for backward scripts (safe to remove later)
+      NOTION_DB_BUNDLES: ${{ secrets.NOTION_DB_BUNDLES }}
+      NOTION_DB_SALES: ${{ secrets.NOTION_DB_SALES }}
+      NOTION_DB_PAYOUTS: ${{ secrets.NOTION_DB_PAYOUTS }}
+      NOTION_DB_DASHBOARD: ${{ secrets.NOTION_DB_DASHBOARD }}
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: 🧩 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci || npm i
-      - run: node scripts/sync.mjs
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          NOTION_DB_BUNDLES: ${{ secrets.NOTION_DB_BUNDLES }}
-          NOTION_DB_SALES: ${{ secrets.NOTION_DB_SALES }}
-          NOTION_DB_PAYOUTS: ${{ secrets.NOTION_DB_PAYOUTS }}
-          NOTION_DB_DASHBOARD: ${{ secrets.NOTION_DB_DASHBOARD }}
 
+      - name: 📦 Install dependencies
+        run: npm ci || npm i
+
+      - name: 🚀 Run DAO → Notion Sync (Supabase → Notion)
+        run: |
+          echo "Starting DAO → Notion sync..."
+          export NODE_TLS_REJECT_UNAUTHORIZED=0
+          node -r dotenv/config scripts/dao_sync.mjs
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_USER_ID: ${{ secrets.SLACK_USER_ID }}
+          DRY_RUN: ${{ secrets.DRY_RUN }}
+          NOTION_EVIDENCE_DB_ID: ${{ secrets.NOTION_EVIDENCE_DB_ID }}
+          NOTION_SALES_DB_ID: ${{ secrets.NOTION_SALES_DB_ID }}
