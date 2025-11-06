@@ -1,40 +1,103 @@
-// scripts/cadence_runner.mjs (DRY-RUN capable)
+// scripts/cadence_runner.mjs (DRY-RUN capable, Phase 6)
 import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-11-01' });
+// Initialize clients
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY_TEST, {
+  apiVersion: '2024-11-01',
+});
+
 const DRY = process.env.DRY_RUN === '1' || process.argv.includes('--dry');
 
+console.log(DRY ? '💤 Running in DRY MODE (no live charges)...' : '⚡ LIVE mode enabled.');
+
+// ---------------------------------------------
+// STEP 1 — Get due offers based on cadence + billing_day
+// ---------------------------------------------
 async function getDueOffers(asOfDate = new Date()) {
-  // Query offers where cadence matches today based on billing_day
   const day = asOfDate.getUTCDate();
+
+  console.log(`🔍 Checking offers due for billing day: ${day}`);
+
   const { data: offers, error } = await supabase
     .from('offers')
-    .select('id, cadence, term_months, billing_day')
+    .select('id, offer_name, price, currency, cadence, term_months, billing_day, vault_id')
     .or(`billing_day.eq.${day},cadence.eq.once`)
     .limit(500);
-  if (error) throw error;
-  return data || [];
+
+  if (error) throw new Error(`Supabase query error: ${error.message}`);
+  if (!offers || !offers.length) {
+    console.log('⚠️ No offers found for this billing day or cadence criteria.');
+    return [];
+  }
+
+  console.log(`✅ Found ${offers.length} offers due today.`);
+  return offers;
 }
 
-async function run() {
-  const offers = await getDueOffers();
-  for (const o of offers) {
-    const payload = {
-      offerId: o.id,
-      amount: Number(o.price || 0),
-      currency: o.currency || 'AUD',
-      vaultId: o.vault_id || null
-    };
-    console.log(DRY ? '[DRY]' : '[LIVE]', 'Would charge:', payload);
-    if (!DRY) {
-      // create Stripe invoice/charge (idempotent key = offerId:YYYY-MM-DD)
-      const idempotencyKey = `${o.id}:${new Date().toISOString().slice(0,10)}`;
-      // TODO: build invoice logic by your Stripe integration model
+// ---------------------------------------------
+// STEP 2 — Simulate billing or create invoice
+// ---------------------------------------------
+async function processOffer(offer) {
+  const payload = {
+    offerId: offer.id,
+    offerName: offer.offer_name,
+    amount: Number(offer.price || 0),
+    currency: offer.currency || 'AUD',
+    vaultId: offer.vault_id || null,
+    cadence: offer.cadence,
+    billingDay: offer.billing_day,
+  };
+
+  console.log(DRY ? '[DRY]' : '[LIVE]', 'Processing offer:', payload);
+
+  if (!DRY) {
+    try {
+      const idempotencyKey = `${offer.id}:${new Date().toISOString().slice(0, 10)}`;
+      // Placeholder for Stripe logic — replace when ready
+      const invoice = await stripe.invoices.create(
+        {
+          customer: 'cus_xxx_replace_later',
+          collection_method: 'send_invoice',
+          days_until_due: 7,
+          description: `Billing for offer ${offer.offer_name}`,
+        },
+        { idempotencyKey }
+      );
+
+      console.log(`✅ Created Stripe invoice for ${offer.offer_name}: ${invoice.id}`);
+    } catch (err) {
+      console.error(`❌ Stripe error for offer ${offer.offer_name}:`, err.message);
     }
   }
 }
 
-run().catch(e => { console.error(e); process.exit(1); });
+// ---------------------------------------------
+// STEP 3 — Runner entrypoint
+// ---------------------------------------------
+async function run() {
+  console.log('🚀 Starting cadence runner...');
+  const offers = await getDueOffers();
+
+  if (!offers.length) {
+    console.log('✅ Nothing to process. Exiting.');
+    return;
+  }
+
+  for (const offer of offers) {
+    await processOffer(offer);
+  }
+
+  console.log(DRY ? '🧾 [DRY RUN COMPLETE] No live charges made.' : '💰 [LIVE RUN COMPLETE] Invoices processed.');
+}
+
+run().catch((e) => {
+  console.error('Fatal Error:', e.message);
+  process.exit(1);
+});
