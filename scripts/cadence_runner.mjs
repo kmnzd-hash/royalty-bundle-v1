@@ -1,4 +1,4 @@
-// scripts/cadence_runner.mjs (DRY-RUN capable, Phase 6)
+// scripts/cadence_runner.mjs (DRY-RUN capable, Phase 6 aligned)
 import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
@@ -9,12 +9,12 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY_TEST, {
-  apiVersion: '2024-11-01',
-});
+const stripe = new Stripe(
+  process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY_TEST,
+  { apiVersion: '2024-11-01' }
+);
 
 const DRY = process.env.DRY_RUN === '1' || process.argv.includes('--dry');
-
 console.log(DRY ? '💤 Running in DRY MODE (no live charges)...' : '⚡ LIVE mode enabled.');
 
 // ---------------------------------------------
@@ -22,12 +22,11 @@ console.log(DRY ? '💤 Running in DRY MODE (no live charges)...' : '⚡ LIVE mo
 // ---------------------------------------------
 async function getDueOffers(asOfDate = new Date()) {
   const day = asOfDate.getUTCDate();
-
   console.log(`🔍 Checking offers due for billing day: ${day}`);
 
   const { data: offers, error } = await supabase
     .from('offers')
-    .select('id, name, default_price, cadence, term_months, billing_day, vault_id')
+    .select('id, name, offer_type, description, default_price, cadence, term_months, billing_day')
     .or(`billing_day.eq.${day},cadence.eq.once`)
     .limit(500);
 
@@ -49,10 +48,10 @@ async function processOffer(offer) {
     offerId: offer.id,
     offerName: offer.name || '(unnamed offer)',
     amount: Number(offer.default_price || 0),
-    currency: 'AUD', // default fallback since offers table has no currency column
-    vaultId: offer.vault_id || null,
+    currency: 'AUD', // default currency
     cadence: offer.cadence,
     billingDay: offer.billing_day,
+    offerType: offer.offer_type || 'core'
   };
 
   console.log(DRY ? '[DRY]' : '[LIVE]', 'Processing offer:', payload);
@@ -60,20 +59,21 @@ async function processOffer(offer) {
   if (!DRY) {
     try {
       const idempotencyKey = `${offer.id}:${new Date().toISOString().slice(0, 10)}`;
-      // Placeholder for Stripe logic — replace when ready
+
+      // Placeholder for Stripe logic — safe to skip until Phase 7
       const invoice = await stripe.invoices.create(
         {
           customer: 'cus_xxx_replace_later',
           collection_method: 'send_invoice',
           days_until_due: 7,
-          description: `Billing for offer ${offer.offer_name}`,
+          description: `Billing for offer ${offer.name}`,
         },
         { idempotencyKey }
       );
 
-      console.log(`✅ Created Stripe invoice for ${offer.offer_name}: ${invoice.id}`);
+      console.log(`✅ Created Stripe invoice for ${offer.name}: ${invoice.id}`);
     } catch (err) {
-      console.error(`❌ Stripe error for offer ${offer.offer_name}:`, err.message);
+      console.error(`❌ Stripe error for offer ${offer.name}:`, err.message);
     }
   }
 }
