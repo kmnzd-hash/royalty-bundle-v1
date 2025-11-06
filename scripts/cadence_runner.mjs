@@ -10,8 +10,9 @@ const DRY = process.env.DRY_RUN === '1' || process.argv.includes('--dry');
 async function getDueOffers(asOfDate = new Date()) {
   // Query offers where cadence matches today based on billing_day
   const day = asOfDate.getUTCDate();
-  const { data, error } = await supabase.from('offers')
-    .select('offer_id,id,offer_name,price,currency,cadence,term_months,billing_day,bundle_id')
+  const { data: offers, error } = await supabase
+    .from('offers')
+    .select('id, cadence, term_months, billing_day')
     .or(`billing_day.eq.${day},cadence.eq.once`)
     .limit(500);
   if (error) throw error;
