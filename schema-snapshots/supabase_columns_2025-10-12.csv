@@ -1,0 +1,88 @@
+      table_name       |   column_name    |        data_type         | is_nullable |                  column_default                   
+-----------------------+------------------+--------------------------+-------------+---------------------------------------------------
+ bundles               | bundle_id        | integer                  | NO          | nextval('bundles_bundle_id_seq'::regclass)
+ bundles               | offer_id         | integer                  | YES         | 
+ bundles               | entity_from      | integer                  | YES         | 
+ bundles               | entity_to        | integer                  | YES         | 
+ bundles               | ip_holder        | integer                  | YES         | 
+ bundles               | bundle_type      | text                     | YES         | 
+ bundles               | asset_class      | text                     | YES         | 
+ bundles               | override_pct     | numeric                  | YES         | 
+ bundles               | vault_id         | text                     | YES         | 
+ bundles               | royalty_pool_id  | integer                  | YES         | 
+ bundles               | created_at       | timestamp with time zone | YES         | now()
+ entities              | id               | integer                  | NO          | nextval('entities_id_seq'::regclass)
+ entities              | name             | text                     | NO          | 
+ entities              | domain           | text                     | YES         | 
+ entities              | mbti_type        | text                     | YES         | 
+ entities              | created_at       | timestamp with time zone | YES         | now()
+ offers                | id               | integer                  | NO          | nextval('offers_id_seq'::regclass)
+ offers                | name             | text                     | NO          | 
+ offers                | offer_type       | text                     | YES         | 
+ offers                | description      | text                     | YES         | 
+ offers                | default_price    | numeric                  | YES         | 
+ offers                | created_at       | timestamp with time zone | YES         | now()
+ overrides             | id               | integer                  | NO          | nextval('overrides_id_seq'::regclass)
+ overrides             | bundle_id        | integer                  | YES         | 
+ overrides             | tier             | integer                  | YES         | 
+ overrides             | override_pct     | numeric                  | YES         | 
+ overrides             | recipient_role   | text                     | YES         | 
+ overrides             | created_at       | timestamp with time zone | YES         | now()
+ payout_audit_log      | id               | bigint                   | NO          | nextval('payout_audit_log_id_seq'::regclass)
+ payout_audit_log      | payout_id        | integer                  | YES         | 
+ payout_audit_log      | transaction_id   | integer                  | YES         | 
+ payout_audit_log      | action_type      | text                     | NO          | 
+ payout_audit_log      | old_data         | jsonb                    | YES         | 
+ payout_audit_log      | new_data         | jsonb                    | YES         | 
+ payout_audit_log      | change_source    | text                     | YES         | 
+ payout_audit_log      | changed_by       | text                     | YES         | CURRENT_USER
+ payout_audit_log      | created_at       | timestamp with time zone | YES         | now()
+ payouts_v2            | id               | integer                  | NO          | nextval('payouts_v2_id_seq'::regclass)
+ payouts_v2            | payout_uuid      | uuid                     | YES         | gen_random_uuid()
+ payouts_v2            | transaction_id   | integer                  | YES         | 
+ payouts_v2            | sale_id          | uuid                     | YES         | 
+ payouts_v2            | recipient_entity | integer                  | YES         | 
+ payouts_v2            | recipient_role   | text                     | NO          | 
+ payouts_v2            | amount           | numeric                  | YES         | 0
+ payouts_v2            | currency         | text                     | YES         | 'USD'::text
+ payouts_v2            | status           | text                     | YES         | 'queued'::text
+ payouts_v2            | notion_page_url  | text                     | YES         | 
+ payouts_v2            | created_at       | timestamp with time zone | YES         | now()
+ payouts_v2            | sent_at          | timestamp with time zone | YES         | 
+ reuse_event_log       | event_id         | uuid                     | NO          | gen_random_uuid()
+ reuse_event_log       | bundle_id        | integer                  | YES         | 
+ reuse_event_log       | transaction_id   | integer                  | YES         | 
+ reuse_event_log       | reuse_context    | text                     | YES         | 
+ reuse_event_log       | reuse_value      | numeric                  | YES         | 
+ reuse_event_log       | created_at       | timestamp with time zone | NO          | now()
+ royalty_distributions | id               | integer                  | NO          | nextval('royalty_distributions_id_seq'::regclass)
+ royalty_distributions | royalty_pool_id  | integer                  | YES         | 
+ royalty_distributions | entity_id        | integer                  | YES         | 
+ royalty_distributions | percentage       | numeric                  | YES         | 
+ royalty_distributions | created_at       | timestamp with time zone | YES         | now()
+ royalty_ledger        | ledger_id        | uuid                     | NO          | gen_random_uuid()
+ royalty_ledger        | payout_id        | integer                  | YES         | 
+ royalty_ledger        | transaction_id   | integer                  | YES         | 
+ royalty_ledger        | event_id         | uuid                     | YES         | 
+ royalty_ledger        | amount           | numeric                  | YES         | 
+ royalty_ledger        | currency         | text                     | YES         | 'USD'::text
+ royalty_ledger        | status           | text                     | YES         | 'pending'::text
+ royalty_ledger        | created_at       | timestamp with time zone | NO          | now()
+ royalty_pools         | id               | integer                  | NO          | nextval('royalty_pools_id_seq'::regclass)
+ royalty_pools         | name             | text                     | NO          | 
+ royalty_pools         | description      | text                     | YES         | 
+ royalty_pools         | creator_id       | integer                  | YES         | 
+ royalty_pools         | base_percentage  | numeric                  | YES         | 
+ royalty_pools         | created_at       | timestamp with time zone | YES         | now()
+ transactions          | id               | integer                  | NO          | nextval('transactions_id_seq'::regclass)
+ transactions          | sale_id          | uuid                     | YES         | 
+ transactions          | bundle_id        | integer                  | YES         | 
+ transactions          | offer_id         | integer                  | YES         | 
+ transactions          | sale_amount      | numeric                  | YES         | 
+ transactions          | sale_currency    | text                     | YES         | 
+ transactions          | sale_date        | timestamp with time zone | YES         | now()
+ transactions          | metadata         | jsonb                    | YES         | 
+ transactions          | created_at       | timestamp with time zone | YES         | now()
+ transactions          | description      | text                     | YES         | 
+(84 rows)
+

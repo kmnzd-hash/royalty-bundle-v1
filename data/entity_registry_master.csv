@@ -1,0 +1,4 @@
+entity_id,entity_name,entity_type,jurisdiction,registration_no,bank_alias,stripe_alias,tax_id,owner_entity,signatory,governance_layer,credit_role,notes,tags,status
+E001,Nolastray Support Pty Ltd,Operating,AU,REG1234,NSupportBank,NSupportStripe,TAX123,Howard Bridge Holdings LLC,Karen Diño,Platform,Primary,"Support Operations Entity","{ops,platform}","🟢 Active"
+E002,Howard Bridge Holdings LLC,HoldCo,US,REG5678,HBridgeBank,HBridgeStripe,TAX567,,Derrick Howard,Family Office,Lender,"Family Office & Treasury","{finance,treasury}","🟢 Active"
+E003,Vault IP LLC,IP Holdings,US,REG9999,VaultBank,VaultStripe,TAX999,Howard Bridge Holdings LLC,Derrick Howard,IP / DAO,Owner,"Intellectual Property Holdings","{ip,dao}","🟢 Active"

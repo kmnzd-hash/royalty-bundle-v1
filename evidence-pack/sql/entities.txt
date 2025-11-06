@@ -1,0 +1,7 @@
+        entity_name         | governance_layer 
+----------------------------+------------------
+ Nolastray Support Pty Ltd  | Platform
+ Howard Bridge Holdings LLC | Family Office
+ Vault IP LLC               | IP / DAO
+(3 rows)
+
