@@ -1,0 +1,48 @@
+name: Cadence Runner (Staging - Dry Run)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * *"  # Runs daily at 2AM UTC for staging tests
+
+jobs:
+  cadence-staging:
+    runs-on: ubuntu-latest
+
+    env:
+      # --- STAGING ENVIRONMENT VARIABLES ---
+      SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY_TEST }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN_STAGING }}
+
+      # --- STAGING NOTION DATABASES ---
+      NOTION_EVIDENCE_DB_ID: ${{ secrets.NOTION_EVIDENCE_DB_ID_STAGING }}
+      NOTION_SALES_DB_ID: ${{ secrets.NOTION_SALES_DB_ID_STAGING }}
+
+      # --- CONTROL FLAGS ---
+      DRY_RUN: 1
+      NODE_ENV: development
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci || npm i
+
+      - name: Verify environment variables
+        run: |
+          echo "🔍 Checking staging environment..."
+          echo "Supabase URL: $SUPABASE_URL"
+          echo "Notion Staging Token and DB IDs loaded successfully."
+
+      - name: Run Cadence Runner (STAGING - DRY RUN)
+        run: |
+          echo "🚀 Running cadence runner in STAGING dry mode..."
+          node -r dotenv/config scripts/cadence_runner.mjs --dry
