@@ -26,7 +26,7 @@ async function getDueOffers(asOfDate = new Date()) {
 
   const { data: offers, error } = await supabase
     .from('offers')
-    .select('id, offer_name, offer_type, description, default_price, cadence, term_months, billing_day')
+    .select('id, offer_name, default_price, cadence, term_months, billing_day')
     .or(`billing_day.eq.${day},cadence.eq.once`)
     .limit(500);
 
@@ -51,7 +51,7 @@ async function processOffer(offer) {
     currency: 'AUD', // default currency
     cadence: offer.cadence,
     billingDay: offer.billing_day,
-    offerType: offer.offer_type || 'core'
+    offerType: 'core'
   };
 
   console.log(DRY ? '[DRY]' : '[LIVE]', 'Processing offer:', payload);
