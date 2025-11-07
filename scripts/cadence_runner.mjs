@@ -26,7 +26,7 @@ async function getDueOffers(asOfDate = new Date()) {
 
   const { data: offers, error } = await supabase
     .from('offers')
-    .select('id, name, offer_type, description, default_price, cadence, term_months, billing_day')
+    .select('id, offer_name, offer_type, description, default_price, cadence, term_months, billing_day')
     .or(`billing_day.eq.${day},cadence.eq.once`)
     .limit(500);
 
@@ -46,7 +46,7 @@ async function getDueOffers(asOfDate = new Date()) {
 async function processOffer(offer) {
   const payload = {
     offerId: offer.id,
-    offerName: offer.name || '(unnamed offer)',
+    offerName: offer.offer_name || '(unnamed offer)',
     amount: Number(offer.default_price || 0),
     currency: 'AUD', // default currency
     cadence: offer.cadence,
