@@ -1,0 +1,9 @@
+id,name,domain,mbti_type,created_at
+8,Base Entity,base.com,,2025-10-04T14:06:11.711749+00:00
+9,Test Collaborator,example.com,,2025-10-05T01:11:57.777878+00:00
+1,Entity-A,Creator Domain,INTJ,2025-10-09T15:31:46.341363+00:00
+2,Entity-B,Executor Domain,ENTJ,2025-10-09T15:31:46.341363+00:00
+3,Entity-C,IP Holder Domain,INFJ,2025-10-09T15:31:46.341363+00:00
+4,Entity-D,Creator Domain,INTP,2025-10-09T15:31:46.341363+00:00
+5,Entity-E,Executor Domain,ENFP,2025-10-09T15:31:46.341363+00:00
+6,Entity-F,IP Holder Domain,ISTJ,2025-10-09T15:31:46.341363+00:00
