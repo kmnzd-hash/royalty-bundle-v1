@@ -25,10 +25,10 @@ async function getDueOffers(asOfDate = new Date()) {
   console.log(`🔍 Checking offers due for billing day: ${day}`);
 
   const { data: offers, error } = await supabase
-    .from('offers')
-    .select('id, offer_name, default_price, cadence, term_months, billing_day')
-    .or(`billing_day.eq.${day},cadence.eq.once`)
-    .limit(500);
+  .from('offers')
+  .select('id, name, offer_type, description, default_price, cadence, term_months, billing_day')
+  .or(`billing_day.eq.${day},cadence.eq.once`)
+  .limit(500);
 
   if (error) throw new Error(`Supabase query error: ${error.message}`);
   if (!offers || !offers.length) {
