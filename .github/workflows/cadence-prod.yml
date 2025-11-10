@@ -1,0 +1,31 @@
+name: Cadence Runner (Production)
+
+on:
+  workflow_dispatch:  # Manual trigger only for now
+
+jobs:
+  cadence-prod:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      DRY_RUN: 0  # LIVE mode
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci || npm i
+
+      - name: Run Cadence Runner (LIVE)
+        run: |
+          echo "⚡ Running cadence runner in LIVE production mode..."
+          node -r dotenv/config scripts/cadence_runner.mjs
