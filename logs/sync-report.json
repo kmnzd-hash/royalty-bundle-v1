@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "timestamp": "2025-11-11T08:56:01.489Z",
+    "job": "cadence_runner",
+    "message": "dry run complete",
+    "status": "success"
+  }
+]
